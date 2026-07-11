@@ -1,0 +1,37 @@
+<section class="section">
+  <div class="wrap">
+    <h1 class="section-title">Current Vacancies</h1>
+    <p class="section-sub">Open volunteer seats on boards/commissions and open Town department jobs.</p>
+
+    <div style="margin-bottom:24px;display:flex;gap:8px;">
+      <a class="btn btn-sm <%= !category ? 'btn-navy' : 'btn-outline' %>" style="<%= !category ? '' : 'color:#16294a;border-color:#16294a;' %>" href="/vacancies">All</a>
+      <a class="btn btn-sm <%= category==='BOARD_COMMISSION' ? 'btn-navy' : 'btn-outline' %>" style="<%= category==='BOARD_COMMISSION' ? '' : 'color:#16294a;border-color:#16294a;' %>" href="/vacancies?category=BOARD_COMMISSION">Boards &amp; Commissions</a>
+      <a class="btn btn-sm <%= category==='TOWN_DEPARTMENT' ? 'btn-navy' : 'btn-outline' %>" style="<%= category==='TOWN_DEPARTMENT' ? '' : 'color:#16294a;border-color:#16294a;' %>" href="/vacancies?category=TOWN_DEPARTMENT">Town Departments</a>
+    </div>
+
+    <% if (!vacancies.length) { %>
+      <div class="alert alert-info">There are no open vacancies in this category right now. Please check back soon.</div>
+    <% } %>
+
+    <div class="card-grid">
+      <% vacancies.forEach(function(v) { %>
+        <div class="card">
+          <span class="badge <%= v.category === 'BOARD_COMMISSION' ? 'badge-board' : 'badge-dept' %>">
+            <%= v.category === 'BOARD_COMMISSION' ? 'Board / Commission' : 'Town Department' %>
+          </span>
+          <span class="badge badge-status"><%= v.employmentType.replace('_',' ') %></span>
+          <h3 style="margin-top:10px;"><%= v.title %></h3>
+          <p style="font-weight:600;color:#16294a;"><%= v.departmentOrBoard %></p>
+          <p><%= v.description %></p>
+          <% if (v.qualifications) { %><p><strong>Qualifications:</strong> <%= v.qualifications %></p><% } %>
+          <p class="hint">Posted <%= v.postedDate.toDateString() %><% if (v.closingDate) { %> · Closes <%= v.closingDate.toDateString() %><% } %></p>
+          <% if (v.category === 'BOARD_COMMISSION') { %>
+            <a class="btn btn-navy btn-sm" href="/volunteer-application?vacancy=<%= v.id %>">Apply to Volunteer</a>
+          <% } else { %>
+            <a class="btn btn-navy btn-sm" href="/employment-application?vacancy=<%= v.id %>">Apply for this Job</a>
+          <% } %>
+        </div>
+      <% }); %>
+    </div>
+  </div>
+</section>

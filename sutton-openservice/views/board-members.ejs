@@ -1,0 +1,32 @@
+<section class="section">
+  <div class="wrap">
+    <h1 class="section-title">Boards &amp; Commissions</h1>
+    <p class="section-sub">Current membership and term expiration dates for each Town board and commission.</p>
+
+    <% boards.forEach(function(b) { %>
+      <div class="card" style="margin-bottom:22px;">
+        <h3><%= b.name %></h3>
+        <% if (b.description) { %><p><%= b.description %></p><% } %>
+        <table class="data-table">
+          <thead>
+            <tr><th>Seat</th><th>Current Member</th><th>Term Expires</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <% b.seats.forEach(function(s) { %>
+              <tr>
+                <td><%= s.seatTitle %></td>
+                <td><%= s.vacant ? '—' : (s.memberName || '—') %></td>
+                <td><%= s.termExpires ? s.termExpires.toDateString() : '—' %></td>
+                <td><span class="badge <%= s.vacant ? 'badge-vacant' : 'badge-filled' %>"><%= s.vacant ? 'Vacant' : 'Filled' %></span></td>
+              </tr>
+            <% }); %>
+            <% if (!b.seats.length) { %><tr><td colspan="4">No seats recorded yet.</td></tr><% } %>
+          </tbody>
+        </table>
+        <div style="margin-top:14px;">
+          <a class="btn btn-sm btn-navy" href="/volunteer-application">Apply for a seat on this board</a>
+        </div>
+      </div>
+    <% }); %>
+  </div>
+</section>

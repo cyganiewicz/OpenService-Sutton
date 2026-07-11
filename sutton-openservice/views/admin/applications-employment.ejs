@@ -1,0 +1,21 @@
+<div class="admin-shell">
+  <%- include('../partials/admin-sidebar') %>
+  <div class="admin-content">
+    <h1 class="section-title">Employment Applications</h1>
+    <table class="data-table">
+      <thead><tr><th>Name</th><th>Position</th><th>Submitted</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        <% apps.forEach(function(a) { %>
+          <tr>
+            <td><%= a.firstName %> <%= a.lastName %><br><span class="hint"><%= a.email %></span></td>
+            <td><%= a.vacancy ? a.vacancy.title : 'General application' %></td>
+            <td><%= a.submittedAt.toLocaleString() %></td>
+            <td><span class="badge badge-status"><%= a.status.replace('_',' ') %></span></td>
+            <td><a class="btn btn-sm btn-navy" href="/admin/applications/employment/<%= a.id %>">View</a></td>
+          </tr>
+        <% }); %>
+        <% if (!apps.length) { %><tr><td colspan="5">No employment applications yet.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+</div>

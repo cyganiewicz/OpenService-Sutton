@@ -1,0 +1,185 @@
+// Town of Sutton — OpenService
+// Prisma schema targeting PostgreSQL (Railway)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum VacancyCategory {
+  BOARD_COMMISSION
+  TOWN_DEPARTMENT
+}
+
+enum VacancyStatus {
+  OPEN
+  CLOSED
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  SEASONAL
+  APPOINTED
+  VOLUNTEER
+}
+
+enum ApplicationStatus {
+  NEW
+  UNDER_REVIEW
+  INTERVIEWING
+  CLOSED
+}
+
+enum AdminRole {
+  ADMINISTRATOR
+  STAFF
+}
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         AdminRole @default(STAFF)
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  lastLoginAt  DateTime?
+}
+
+model BoardCommission {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  description String?
+  totalSeats  Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  seats       BoardSeat[]
+  vacancies   JobVacancy[]
+}
+
+model BoardSeat {
+  id                String          @id @default(cuid())
+  boardCommission    BoardCommission @relation(fields: [boardCommissionId], references: [id], onDelete: Cascade)
+  boardCommissionId String
+  seatTitle         String          // e.g. "Chair", "Member", "Alternate"
+  memberName        String?
+  appointedDate     DateTime?
+  termExpires       DateTime?
+  vacant            Boolean         @default(false)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+model JobVacancy {
+  id                String           @id @default(cuid())
+  category          VacancyCategory
+  title             String
+  departmentOrBoard String
+  boardCommission    BoardCommission? @relation(fields: [boardCommissionId], references: [id])
+  boardCommissionId String?
+  employmentType    EmploymentType
+  description       String
+  qualifications     String?
+  postedDate         DateTime        @default(now())
+  closingDate        DateTime?
+  status             VacancyStatus   @default(OPEN)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  volunteerApplications  VolunteerApplication[]
+  employmentApplications EmploymentApplication[]
+}
+
+model VolunteerApplication {
+  id                  String            @id @default(cuid())
+  vacancy             JobVacancy?       @relation(fields: [vacancyId], references: [id])
+  vacancyId           String?
+  boardsInterestedIn   String
+  firstName           String
+  lastName             String
+  email                String
+  phone                String
+  addressStreet       String
+  addressCity          String
+  addressState         String @default("MA")
+  addressZip           String
+  availability         String?
+  relevantExperience   String?
+  whyInterested        String?
+  referralSource       String?
+  status               ApplicationStatus @default(NEW)
+  submittedAt          DateTime          @default(now())
+  submittedIp          String?
+}
+
+model EmploymentApplication {
+  id     String      @id @default(cuid())
+  vacancy   JobVacancy? @relation(fields: [vacancyId], references: [id])
+  vacancyId String?
+
+  dateOfApplication DateTime @default(now())
+  referralSource    String?
+
+  lastName   String
+  firstName  String
+  middleName String?
+
+  addressStreet String
+  addressCity   String
+  addressState  String @default("MA")
+  addressZip    String
+
+  email      String
+  phoneHome  String?
+  phoneCell  String?
+
+  workEligible        Boolean
+  ageEighteenOrOlder  Boolean
+  workedForTownBefore Boolean
+  priorEmploymentFrom String?
+  priorEmploymentTo   String?
+  priorDepartment     String?
+
+  capableOfDuties       Boolean
+  incapableDutiesDetail String?
+
+  currentlyEmployed Boolean
+  onLayoffRecall    Boolean
+
+  // Repeating sections stored as structured JSON (mirrors the paper form's
+  // repeatable rows): employment history entries, education rows,
+  // computer-skill ratings, and references.
+  employmentHistory Json
+  volunteerWorkHistory String?
+  education         Json
+  specializedTraining String?
+  additionalInfo      String?
+  computerSkills      Json
+
+  veteran                Boolean @default(false)
+  militaryBranch         String?
+  militaryRankDischarged String?
+  militaryDischargeStatus String?
+  presentMilitaryStatus  String?
+  militaryServiceSchool  String?
+
+  civicActivities String?
+  references      Json
+
+  signatureTypedName String
+  signatureDate      DateTime
+  acknowledged       Boolean
+
+  resumeFileName String?
+  resumeFileType String?
+  resumeFileData Bytes?
+
+  status      ApplicationStatus @default(NEW)
+  submittedAt DateTime          @default(now())
+  submittedIp String?
+}
