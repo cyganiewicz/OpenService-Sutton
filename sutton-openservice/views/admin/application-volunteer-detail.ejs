@@ -2,7 +2,7 @@
   <%- include('../partials/admin-sidebar') %>
   <div class="admin-content">
     <div class="admin-topbar">
-      <h1 class="section-title" style="margin:0;"><%= app.firstName %> <%= app.lastName %></h1>
+      <h1 class="section-title u-m-0"><%= app.firstName %> <%= app.lastName %></h1>
       <a class="btn btn-sm btn-navy" href="/admin/applications/volunteer/<%= app.id %>/edit">Edit Application</a>
     </div>
     <div class="detail-grid">
@@ -14,14 +14,14 @@
       <div class="detail-item"><div class="k">Linked Vacancy</div><div class="v"><%= app.vacancy ? app.vacancy.title : '—' %></div></div>
       <div class="detail-item"><div class="k">Referral Source</div><div class="v"><%= app.referralSource || '—' %></div></div>
     </div>
-    <div class="card" style="margin-bottom:16px;">
+    <div class="card u-mb-16">
       <h3>Availability</h3><p><%= app.availability || '—' %></p>
       <h3>Relevant Experience</h3><p><%= app.relevantExperience || '—' %></p>
       <h3>Why Interested</h3><p><%= app.whyInterested || '—' %></p>
     </div>
     <form method="POST" action="/admin/applications/volunteer/<%= app.id %>/status">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <div class="field-row" style="align-items:flex-end;">
+      <div class="field-row u-align-end">
         <div class="field">
           <label>Status</label>
           <select name="status">

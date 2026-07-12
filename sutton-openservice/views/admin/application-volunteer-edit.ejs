@@ -2,7 +2,7 @@
   <%- include('../partials/admin-sidebar') %>
   <div class="admin-content">
     <h1 class="section-title">Edit Volunteer Application</h1>
-    <div class="form-shell" style="margin:0;max-width:none;">
+    <div class="form-shell form-shell-flush">
       <% if (errors && errors.general) { %><div class="alert alert-error"><%= errors.general.msg %></div><% } %>
       <form method="POST" action="/admin/applications/volunteer/<%= app.id %>/edit">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -37,7 +37,7 @@
         <div class="field"><label>Why interested</label><textarea name="whyInterested"><%= app.whyInterested || '' %></textarea></div>
         <div class="field"><label>Referral source</label><input type="text" name="referralSource" value="<%= app.referralSource || '' %>"></div>
         <button class="btn btn-primary" type="submit">Save Changes</button>
-        <a class="btn btn-outline" style="color:#16294a;border-color:#16294a;" href="/admin/applications/volunteer/<%= app.id %>">Cancel</a>
+        <a class="btn btn-outline-brand" href="/admin/applications/volunteer/<%= app.id %>">Cancel</a>
       </form>
     </div>
   </div>

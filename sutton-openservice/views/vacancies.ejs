@@ -3,10 +3,10 @@
     <h1 class="section-title">Current Vacancies</h1>
     <p class="section-sub">Open volunteer seats on boards/commissions and open Town department jobs.</p>
 
-    <div style="margin-bottom:24px;display:flex;gap:8px;">
-      <a class="btn btn-sm <%= !category ? 'btn-navy' : 'btn-outline' %>" style="<%= !category ? '' : 'color:#16294a;border-color:#16294a;' %>" href="/vacancies">All</a>
-      <a class="btn btn-sm <%= category==='BOARD_COMMISSION' ? 'btn-navy' : 'btn-outline' %>" style="<%= category==='BOARD_COMMISSION' ? '' : 'color:#16294a;border-color:#16294a;' %>" href="/vacancies?category=BOARD_COMMISSION">Boards &amp; Commissions</a>
-      <a class="btn btn-sm <%= category==='TOWN_DEPARTMENT' ? 'btn-navy' : 'btn-outline' %>" style="<%= category==='TOWN_DEPARTMENT' ? '' : 'color:#16294a;border-color:#16294a;' %>" href="/vacancies?category=TOWN_DEPARTMENT">Town Departments</a>
+    <div class="u-flex-gap-8">
+      <a class="btn btn-sm <%= !category ? 'btn-navy' : 'btn-outline-brand' %>" href="/vacancies">All</a>
+      <a class="btn btn-sm <%= category==='BOARD_COMMISSION' ? 'btn-navy' : 'btn-outline-brand' %>" href="/vacancies?category=BOARD_COMMISSION">Boards &amp; Commissions</a>
+      <a class="btn btn-sm <%= category==='TOWN_DEPARTMENT' ? 'btn-navy' : 'btn-outline-brand' %>" href="/vacancies?category=TOWN_DEPARTMENT">Town Departments</a>
     </div>
 
     <% if (!vacancies.length) { %>
@@ -37,9 +37,9 @@
             <%= v.category === 'BOARD_COMMISSION' ? 'Board / Commission' : 'Town Department' %>
           </span>
           <span class="badge badge-status"><%= v.employmentType.replace('_',' ') %></span>
-          <h3 style="margin-top:10px;"><%= v.title %></h3>
-          <p style="font-weight:600;color:#16294a;"><%= v.departmentOrBoard %></p>
-          <% if (payLine) { %><p style="font-weight:600;color:var(--success);"><%= payLine %></p><% } %>
+          <h3 class="u-mt-10"><%= v.title %></h3>
+          <p class="text-brand-strong"><%= v.departmentOrBoard %></p>
+          <% if (payLine) { %><p class="text-success-strong"><%= payLine %></p><% } %>
           <div class="rich-content"><%- v.description %></div>
           <% if (v.qualifications) { %><p><strong>Qualifications:</strong></p><div class="rich-content"><%- v.qualifications %></div><% } %>
           <p class="hint">Posted <%= v.postedDate.toDateString() %><% if (v.closingDate) { %> · Closes <%= v.closingDate.toDateString() %><% } %></p>

@@ -4,7 +4,7 @@
     <p class="section-sub">Current membership and term expiration dates for each Town board and commission.</p>
 
     <% boards.forEach(function(b) { %>
-      <div class="card" style="margin-bottom:22px;">
+      <div class="card u-mb-22">
         <h3><%= b.name %></h3>
         <% if (b.description) { %><p><%= b.description %></p><% } %>
         <table class="data-table">
@@ -23,7 +23,7 @@
             <% if (!b.seats.length) { %><tr><td colspan="4">No seats recorded yet.</td></tr><% } %>
           </tbody>
         </table>
-        <div style="margin-top:14px;">
+        <div class="u-mt-14">
           <a class="btn btn-sm btn-navy" href="/volunteer-application">Apply for a seat on this board</a>
         </div>
       </div>

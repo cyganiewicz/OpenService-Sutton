@@ -2,7 +2,7 @@
   <%- include('../partials/admin-sidebar') %>
   <div class="admin-content">
     <div class="admin-topbar">
-      <h1 class="section-title" style="margin:0;">Vacancies</h1>
+      <h1 class="section-title u-m-0">Vacancies</h1>
       <a class="btn btn-primary btn-sm" href="/admin/vacancies/new">+ New Vacancy</a>
     </div>
     <table class="data-table">
@@ -16,8 +16,8 @@
             <td><span class="badge <%= v.status === 'OPEN' ? 'badge-open' : 'badge-closed' %>"><%= v.status %></span></td>
             <td><%= v.postedDate.toDateString() %></td>
             <td>
-              <a class="btn btn-sm btn-outline" style="color:#16294a;border-color:#16294a;" href="/admin/vacancies/<%= v.id %>/edit">Edit</a>
-              <form method="POST" action="/admin/vacancies/<%= v.id %>/delete" style="display:inline" onsubmit="return confirm('Delete this vacancy?');">
+              <a class="btn btn-sm btn-outline-brand" href="/admin/vacancies/<%= v.id %>/edit">Edit</a>
+              <form method="POST" action="/admin/vacancies/<%= v.id %>/delete" class="u-inline" data-confirm="Delete this vacancy?">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <button class="btn btn-sm btn-danger" type="submit">Delete</button>
               </form>

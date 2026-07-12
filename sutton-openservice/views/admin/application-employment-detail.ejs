@@ -2,7 +2,7 @@
   <%- include('../partials/admin-sidebar') %>
   <div class="admin-content">
     <div class="admin-topbar">
-      <h1 class="section-title" style="margin:0;"><%= app.firstName %> <%= app.middleName ? app.middleName + ' ' : '' %><%= app.lastName %></h1>
+      <h1 class="section-title u-m-0"><%= app.firstName %> <%= app.middleName ? app.middleName + ' ' : '' %><%= app.lastName %></h1>
       <a class="btn btn-sm btn-navy" href="/admin/applications/employment/<%= app.id %>/edit">Edit Application</a>
     </div>
 
@@ -21,13 +21,13 @@
     </div>
 
     <% if (app.resumeFileName) { %>
-      <div class="card" style="margin-bottom:16px;">
+      <div class="card u-mb-16">
         <h3>Resume</h3>
         <a class="btn btn-sm btn-navy" href="/admin/applications/employment/<%= app.id %>/resume"><%= app.resumeFileName %> — Download</a>
       </div>
     <% } %>
 
-    <div class="card" style="margin-bottom:16px;">
+    <div class="card u-mb-16">
       <h3>Employment History</h3>
       <% (app.employmentHistory || []).forEach(function(e, i) { %>
         <p><strong><%= e.employerName || '(unnamed employer)' %></strong> — <%= e.jobTitle || '' %><br>
@@ -42,7 +42,7 @@
       <h4>Volunteer Work History</h4><p><%= app.volunteerWorkHistory || '—' %></p>
     </div>
 
-    <div class="card" style="margin-bottom:16px;">
+    <div class="card u-mb-16">
       <h3>Education</h3>
       <table class="data-table">
         <thead><tr><th>Level</th><th>School</th><th>Dates</th><th>Diploma</th><th>Graduated</th></tr></thead>
@@ -52,11 +52,11 @@
           <% }); %>
         </tbody>
       </table>
-      <p style="margin-top:12px;"><strong>Specialized Training:</strong> <%= app.specializedTraining || '—' %></p>
+      <p class="u-mt-12"><strong>Specialized Training:</strong> <%= app.specializedTraining || '—' %></p>
       <p><strong>Additional Info:</strong> <%= app.additionalInfo || '—' %></p>
     </div>
 
-    <div class="card" style="margin-bottom:16px;">
+    <div class="card u-mb-16">
       <h3>Computer Skills</h3>
       <% var skills = app.computerSkills || {}; var skillKeys = Object.keys(skills); %>
       <% if (skillKeys.length) { %>
@@ -66,7 +66,7 @@
       <% } else { %><p>None indicated.</p><% } %>
     </div>
 
-    <div class="card" style="margin-bottom:16px;">
+    <div class="card u-mb-16">
       <h3>Military History</h3>
       <p>Veteran: <%= app.veteran ? 'Yes' : 'No' %></p>
       <% if (app.veteran) { %>
@@ -76,7 +76,7 @@
       <% } %>
     </div>
 
-    <div class="card" style="margin-bottom:16px;">
+    <div class="card u-mb-16">
       <h3>References &amp; Civic Activities</h3>
       <p><%= app.civicActivities || '—' %></p>
       <% (app.references || []).forEach(function(r, i){ %>
@@ -84,14 +84,14 @@
       <% }); %>
     </div>
 
-    <div class="card" style="margin-bottom:16px;">
+    <div class="card u-mb-16">
       <h3>Acknowledgement</h3>
       <p>Signed: <strong><%= app.signatureTypedName %></strong> on <%= app.signatureDate.toDateString() %> — Acknowledged: <%= app.acknowledged ? 'Yes' : 'No' %></p>
     </div>
 
     <form method="POST" action="/admin/applications/employment/<%= app.id %>/status">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <div class="field-row" style="align-items:flex-end;">
+      <div class="field-row u-align-end">
         <div class="field">
           <label>Status</label>
           <select name="status">

@@ -29,20 +29,20 @@
   </div>
 </section>
 
-<section class="section" style="padding-top:0;">
+<section class="section u-pt-0">
   <div class="wrap">
     <h2 class="section-title">Two ways to get involved</h2>
     <p class="section-sub">Choose the application that matches the opportunity.</p>
     <div class="card-grid">
       <div class="card">
         <span class="badge badge-board">Boards &amp; Commissions</span>
-        <h3 style="margin-top:10px;">Volunteer Application</h3>
+        <h3 class="u-mt-10">Volunteer Application</h3>
         <p>Apply for an appointed seat on a Town board or commission — Planning Board, Conservation Commission, and more.</p>
         <a class="btn btn-navy btn-sm" href="/volunteer-application">Start Volunteer Application</a>
       </div>
       <div class="card">
         <span class="badge badge-dept">Town Departments</span>
-        <h3 style="margin-top:10px;">Employment Application</h3>
+        <h3 class="u-mt-10">Employment Application</h3>
         <p>Apply for a paid, full-time, part-time, or seasonal position with a Town department.</p>
         <a class="btn btn-navy btn-sm" href="/employment-application">Start Employment Application</a>
       </div>
@@ -51,7 +51,7 @@
 </section>
 
 <% if (recentVacancies.length) { %>
-<section class="section" style="padding-top:0;">
+<section class="section u-pt-0">
   <div class="wrap">
     <h2 class="section-title">Recently Posted</h2>
     <div class="card-grid">
@@ -60,9 +60,9 @@
           <span class="badge <%= v.category === 'BOARD_COMMISSION' ? 'badge-board' : 'badge-dept' %>">
             <%= v.category === 'BOARD_COMMISSION' ? 'Board / Commission' : 'Town Department' %>
           </span>
-          <h3 style="margin-top:10px;"><%= v.title %></h3>
+          <h3 class="u-mt-10"><%= v.title %></h3>
           <p><%= v.departmentOrBoard %></p>
-          <a class="btn btn-sm btn-outline" style="color:#16294a;border-color:#16294a;" href="/vacancies"><%= 'View details' %></a>
+          <a class="btn btn-sm btn-outline-brand" href="/vacancies"><%= 'View details' %></a>
         </div>
       <% }); %>
     </div>

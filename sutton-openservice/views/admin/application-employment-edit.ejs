@@ -2,7 +2,7 @@
   <%- include('../partials/admin-sidebar') %>
   <div class="admin-content">
     <h1 class="section-title">Edit Employment Application</h1>
-    <div class="form-shell" style="margin:0;max-width:none;">
+    <div class="form-shell form-shell-flush">
       <% if (errors && errors.general) { %><div class="alert alert-error"><%= errors.general.msg %></div><% } %>
       <div class="alert alert-info">Editing here updates the applicant's contact info and history. Their original signature, acknowledgement date, and uploaded resume are preserved and are not changed by this form.</div>
       <% if (hasResume) { %>
@@ -149,7 +149,7 @@
         <div class="field"><label for="additionalInfo">Additional information</label><textarea id="additionalInfo" name="additionalInfo"><%= values.additionalInfo || '' %></textarea></div>
 
         <div class="form-section-title">Section IV: Computer Skills</div>
-        <table class="data-table skills-table" style="margin-bottom:10px;">
+        <table class="data-table skills-table u-mb-10">
           <thead><tr><th>Skill</th><th>Beginner</th><th>Intermediate</th><th>Advanced</th></tr></thead>
           <tbody>
           <% COMPUTER_SKILLS.forEach(function(skill) { %>
@@ -199,7 +199,7 @@
         <p class="hint">Not editable here — this reflects the applicant's original submission.</p>
 
         <button class="btn btn-primary" type="submit">Save Changes</button>
-        <a class="btn btn-outline" style="color:#16294a;border-color:#16294a;" href="/admin/applications/employment/<%= appId %>">Cancel</a>
+        <a class="btn btn-outline-brand" href="/admin/applications/employment/<%= appId %>">Cancel</a>
       </form>
     </div>
   </div>

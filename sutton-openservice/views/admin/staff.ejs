@@ -7,14 +7,14 @@
     <% if (generatedPassword) { %>
       <div class="alert alert-success">
         <strong>Temporary password for <%= generatedPassword.email %>:</strong>
-        <code style="font-size:15px;"><%= generatedPassword.password %></code>
+        <code class="u-fs-15"><%= generatedPassword.password %></code>
         <div class="hint">Share this with them directly (not by unencrypted email, if possible) — it won't be shown again. They'll be required to set their own password on first login.</div>
       </div>
     <% } %>
     <% if (errors && errors.email) { %><div class="alert alert-error"><%= errors.email.msg %></div><% } %>
     <% if (errors && errors.name) { %><div class="alert alert-error"><%= errors.name.msg %></div><% } %>
 
-    <div class="card" style="margin-bottom:24px;">
+    <div class="card u-mb-24">
       <h3>Add a staff account</h3>
       <form method="POST" action="/admin/staff/new">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -43,16 +43,16 @@
             <td><%= s.role %></td>
             <td><span class="badge <%= s.active ? 'badge-filled' : 'badge-vacant' %>"><%= s.active ? 'Active' : 'Deactivated' %></span></td>
             <td><%= s.lastLoginAt ? s.lastLoginAt.toLocaleString() : 'Never' %></td>
-            <td style="white-space:nowrap;">
+            <td class="u-nowrap">
               <% if (s.id !== adminUser.id) { %>
-                <form method="POST" action="/admin/staff/<%= s.id %>/toggle-active" style="display:inline;">
+                <form method="POST" action="/admin/staff/<%= s.id %>/toggle-active" class="u-inline">
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <button class="btn btn-sm btn-outline" style="color:#16294a;border-color:#16294a;" type="submit"><%= s.active ? 'Deactivate' : 'Reactivate' %></button>
+                  <button class="btn btn-sm btn-outline-brand" type="submit"><%= s.active ? 'Deactivate' : 'Reactivate' %></button>
                 </form>
               <% } %>
-              <form method="POST" action="/admin/staff/<%= s.id %>/reset-password" style="display:inline;" onsubmit="return confirm('Reset the password for ' + '<%= s.email %>' + '? They will need the new temporary password to log in.');">
+              <form method="POST" action="/admin/staff/<%= s.id %>/reset-password" class="u-inline" data-confirm="Reset the password for <%= s.email %>? They will need the new temporary password to log in.">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                <button class="btn btn-sm btn-outline" style="color:#16294a;border-color:#16294a;" type="submit">Reset Password</button>
+                <button class="btn btn-sm btn-outline-brand" type="submit">Reset Password</button>
               </form>
             </td>
           </tr>

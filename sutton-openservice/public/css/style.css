@@ -305,6 +305,40 @@ table.data-table tr:last-child td { border-bottom: none; }
 .detail-item .k { font-size: 11px; text-transform: uppercase; color: var(--ink-soft); font-weight: 700; letter-spacing: 0.4px; }
 .detail-item .v { font-size: 14.5px; margin-top: 3px; word-break: break-word; }
 
+/* ----------------------------- Utility classes -----------------------------
+   Small one-off layout/spacing tweaks used across templates. Kept as real
+   classes (not inline style="" attributes) because the site's CSP locks
+   style-src to 'self' with no 'unsafe-inline' — inline style attributes are
+   silently dropped by the browser under that policy, which is what these
+   replace. */
+.u-mt-10 { margin-top: 10px; }
+.u-mt-12 { margin-top: 12px; }
+.u-mt-14 { margin-top: 14px; }
+.u-mt-16 { margin-top: 16px; }
+.u-mb-10 { margin-bottom: 10px; }
+.u-mb-14 { margin-bottom: 14px; }
+.u-mb-16 { margin-bottom: 16px; }
+.u-mb-22 { margin-bottom: 22px; }
+.u-mb-24 { margin-bottom: 24px; }
+.u-m-0 { margin: 0; }
+.u-pt-0 { padding-top: 0; }
+.u-w-100 { width: 100%; }
+.u-text-center { text-align: center; }
+.u-nowrap { white-space: nowrap; }
+.u-inline { display: inline; }
+.u-align-end { align-items: flex-end; }
+.u-flex-gap-8 { display: flex; gap: 8px; margin-bottom: 24px; }
+.u-fs-15 { font-size: 15px; }
+.form-shell-flush { margin: 0; max-width: none; }
+.form-shell-narrow { margin: 0; max-width: 480px; }
+/* Outline button using the current brand color — replaces old inline
+   style="color:#16294a;border-color:#16294a;" (#16294a was the pre-correction
+   guessed navy blue and no longer matches the real forest-green palette). */
+.btn-outline-brand { background: transparent; color: var(--navy-900); border-color: var(--navy-900); }
+.btn-outline-brand:hover { background: var(--gold-100); }
+.text-brand-strong { font-weight: 600; color: var(--navy-900); }
+.text-success-strong { font-weight: 600; color: var(--success); }
+
 @media (max-width: 800px) {
   .admin-shell { grid-template-columns: 1fr; }
   .admin-sidebar { border-right: none; border-bottom: 1px solid var(--border); }

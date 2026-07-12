@@ -3,7 +3,7 @@
   <div class="admin-content">
     <h1 class="section-title">Boards &amp; Commissions</h1>
 
-    <div class="card" style="margin-bottom:24px;">
+    <div class="card u-mb-24">
       <h3>Add a new board or commission</h3>
       <form method="POST" action="/admin/boards/new">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -17,10 +17,10 @@
     </div>
 
     <% boards.forEach(function(b) { %>
-      <div class="card" style="margin-bottom:22px;">
-        <div class="admin-topbar" style="margin-bottom:10px;">
-          <h3 style="margin:0;"><%= b.name %> <span class="hint">(<%= b.seats.length %> seat record(s))</span></h3>
-          <form method="POST" action="/admin/boards/<%= b.id %>/delete" onsubmit="return confirm('Delete this board and all its seat records?');">
+      <div class="card u-mb-22">
+        <div class="admin-topbar u-mb-10">
+          <h3 class="u-m-0"><%= b.name %> <span class="hint">(<%= b.seats.length %> seat record(s))</span></h3>
+          <form method="POST" action="/admin/boards/<%= b.id %>/delete" data-confirm="Delete this board and all its seat records?">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <button class="btn btn-sm btn-danger" type="submit">Delete Board</button>
           </form>
@@ -33,22 +33,22 @@
           <form id="edit-seat-<%= s.id %>" method="POST" action="/admin/boards/<%= b.id %>/seats/<%= s.id %>/edit">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           </form>
-          <form id="delete-seat-<%= s.id %>" method="POST" action="/admin/boards/<%= b.id %>/seats/<%= s.id %>/delete" onsubmit="return confirm('Delete this seat?');">
+          <form id="delete-seat-<%= s.id %>" method="POST" action="/admin/boards/<%= b.id %>/seats/<%= s.id %>/delete" data-confirm="Delete this seat?">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           </form>
         <% }); %>
 
-        <table class="data-table" style="margin-bottom:14px;">
+        <table class="data-table u-mb-14">
           <thead><tr><th>Seat</th><th>Member</th><th>Appointed</th><th>Term Expires</th><th>Vacant?</th><th></th></tr></thead>
           <tbody>
             <% b.seats.forEach(function(s) { %>
               <tr>
-                <td><input type="text" name="seatTitle" form="edit-seat-<%= s.id %>" value="<%= s.seatTitle %>" style="width:100%;"></td>
-                <td><input type="text" name="memberName" form="edit-seat-<%= s.id %>" value="<%= s.memberName || '' %>" style="width:100%;"></td>
+                <td><input type="text" name="seatTitle" form="edit-seat-<%= s.id %>" value="<%= s.seatTitle %>" class="u-w-100"></td>
+                <td><input type="text" name="memberName" form="edit-seat-<%= s.id %>" value="<%= s.memberName || '' %>" class="u-w-100"></td>
                 <td><input type="date" name="appointedDate" form="edit-seat-<%= s.id %>" value="<%= s.appointedDate ? s.appointedDate.toISOString().slice(0,10) : '' %>"></td>
                 <td><input type="date" name="termExpires" form="edit-seat-<%= s.id %>" value="<%= s.termExpires ? s.termExpires.toISOString().slice(0,10) : '' %>"></td>
-                <td style="text-align:center;"><input type="checkbox" name="vacant" form="edit-seat-<%= s.id %>" <%= s.vacant ? 'checked' : '' %>></td>
-                <td style="white-space:nowrap;">
+                <td class="u-text-center"><input type="checkbox" name="vacant" form="edit-seat-<%= s.id %>" <%= s.vacant ? 'checked' : '' %>></td>
+                <td class="u-nowrap">
                   <button class="btn btn-sm btn-navy" type="submit" form="edit-seat-<%= s.id %>">Save</button>
                   <button class="btn btn-sm btn-danger" type="submit" form="delete-seat-<%= s.id %>">Delete</button>
                 </td>
@@ -65,7 +65,7 @@
             <div class="field"><label>Member name (blank = vacant)</label><input type="text" name="memberName"></div>
             <div class="field"><label>Term expires</label><input type="date" name="termExpires"></div>
           </div>
-          <button class="btn btn-sm btn-outline" style="color:#16294a;border-color:#16294a;" type="submit">+ Add Seat</button>
+          <button class="btn btn-sm btn-outline-brand" type="submit">+ Add Seat</button>
         </form>
       </div>
     <% }); %>

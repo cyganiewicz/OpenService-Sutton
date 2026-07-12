@@ -2,7 +2,7 @@
   <%- include('../partials/admin-sidebar') %>
   <div class="admin-content">
     <h1 class="section-title"><%= vacancy ? 'Edit Vacancy' : 'New Vacancy' %></h1>
-    <div class="form-shell" style="margin:0;max-width:none;">
+    <div class="form-shell form-shell-flush">
       <form method="POST" action="<%= vacancy ? '/admin/vacancies/' + vacancy.id + '/edit' : '/admin/vacancies/new' %>">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <div class="field"><label>Title *</label><input type="text" name="title" required value="<%= vacancy ? vacancy.title : '' %>"></div>
@@ -82,7 +82,7 @@
         %>
         <div class="field"><label>Closing date (optional)</label><input type="date" name="closingDate" value="<%= closingDateStr %>"></div>
         <button class="btn btn-primary" type="submit">Save Vacancy</button>
-        <a class="btn btn-outline" style="color:#16294a;border-color:#16294a;" href="/admin/vacancies">Cancel</a>
+        <a class="btn btn-outline-brand" href="/admin/vacancies">Cancel</a>
       </form>
     </div>
   </div>

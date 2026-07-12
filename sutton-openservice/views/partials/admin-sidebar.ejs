@@ -8,8 +8,8 @@
     <a href="/admin/staff" class="<%= currentPath.startsWith('/admin/staff') ? 'active' : '' %>">Staff Accounts</a>
   <% } %>
   <a href="/admin/account/password" class="<%= currentPath.startsWith('/admin/account/password') ? 'active' : '' %>">Change Password</a>
-  <form method="POST" action="/admin/logout" style="margin-top:16px;">
+  <form method="POST" action="/admin/logout" class="u-mt-16">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-    <button class="btn btn-sm btn-outline" style="color:#16294a;border-color:#16294a;width:100%;" type="submit">Log Out</button>
+    <button class="btn btn-sm btn-outline-brand u-w-100" type="submit">Log Out</button>
   </form>
 </div>
