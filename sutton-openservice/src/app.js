@@ -16,6 +16,19 @@ const adminRoutes = require("./routes/admin");
 
 const app = express();
 
+// Captured once at boot and reused for every request. Appended as a
+// cache-busting query string on static assets (see layout.ejs) so that a new
+// deploy always requests a brand-new URL for style.css/etc. Static assets are
+// served with a long Cache-Control max-age (see express.static below), and
+// both browsers and any CDN/edge cache in front of Railway can hold onto a
+// cached response — including, in the worst case, a broken/empty one served
+// during a mid-restart crash — for the full max-age. A stale or corrupted
+// cache entry is keyed to the exact URL, so changing the URL on every boot
+// means there is never a previously-cached entry (good or bad) to collide
+// with.
+const BUILD_ID = Date.now().toString(36);
+app.locals.buildId = BUILD_ID;
+
 // Railway (and most PaaS hosts) sit behind a reverse proxy that terminates
 // TLS — trusting the proxy lets Express see the real client IP (for rate
 // limiting) and correctly detect HTTPS (for secure cookies).

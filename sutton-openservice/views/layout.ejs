@@ -6,7 +6,7 @@
   <title><%= title %> · OpenService · Town of Sutton, MA</title>
   <meta name="description" content="Town of Sutton, MA volunteer and employment application portal — current board/commission vacancies, department job openings, and current board membership terms.">
   <meta name="robots" content="index, follow">
-  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/style.css?v=<%= buildId %>">
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -15,7 +15,7 @@
     <%- body %>
   </main>
   <%- include('partials/footer') %>
-  <script src="/js/rich-editor.js" defer></script>
-  <script src="/js/confirm-forms.js" defer></script>
+  <script src="/js/rich-editor.js?v=<%= buildId %>" defer></script>
+  <script src="/js/confirm-forms.js?v=<%= buildId %>" defer></script>
 </body>
 </html>
