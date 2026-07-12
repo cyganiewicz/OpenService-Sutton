@@ -2,6 +2,30 @@ const express = require("express");
 const prisma = require("../db");
 const router = express.Router();
 
+// Temporary, self-contained diagnostic page — isolates whether an external
+// CSS custom property resolves at all through this app's exact serving
+// pipeline (Express static + Helmet CSP + Railway edge), independent of the
+// full site's markup/JS. Bypasses the EJS layout entirely (raw res.send) so
+// there is nothing else in play. Answer shows directly on the page, no
+// DevTools needed. Safe to delete once the styling issue is resolved.
+router.get("/css-test", (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>CSS diagnostic</title>
+<link rel="stylesheet" href="/css/test.css?v=${req.app.locals.buildId}">
+</head>
+<body>
+  <h1>CSS diagnostic page</h1>
+  <p>This page loads only a 3-line external stylesheet through the exact same server pipeline as the real site (Express static + Helmet CSP + Railway edge) — nothing else.</p>
+  <div class="test-box">This box should have a dark green background if the stylesheet applied.</div>
+  <p id="result" class="result-box">Loading result…</p>
+  <script src="/js/css-test.js?v=${req.app.locals.buildId}" defer></script>
+</body>
+</html>`);
+});
+
 router.get("/", async (req, res, next) => {
   try {
     const [openVacancyCount, boardCount, recentVacancies] = await Promise.all([

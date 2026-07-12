@@ -1,0 +1,4 @@
+:root { --test-navy: #12251a; }
+body { background: #fff; font-family: sans-serif; padding: 40px; max-width: 600px; }
+.test-box { background: var(--test-navy); color: #fff; padding: 20px; border-radius: 8px; margin: 16px 0; }
+.result-box { font-family: monospace; white-space: pre-wrap; border: 2px solid #000; padding: 12px; }
