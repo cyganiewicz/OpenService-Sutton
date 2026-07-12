@@ -40,15 +40,26 @@ enum AdminRole {
   STAFF
 }
 
+enum PayType {
+  HOURLY
+  SALARIED
+  STIPEND
+  UNPAID
+  OTHER
+}
+
 model AdminUser {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  passwordHash String
-  name         String
-  role         AdminRole @default(STAFF)
-  active       Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  lastLoginAt  DateTime?
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  passwordHash       String
+  name               String
+  role               AdminRole @default(STAFF)
+  active             Boolean   @default(true)
+  // Forces a password change on next login — set true whenever an
+  // ADMINISTRATOR creates an account or resets someone's password.
+  mustChangePassword Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  lastLoginAt        DateTime?
 }
 
 model BoardCommission {
@@ -83,8 +94,12 @@ model JobVacancy {
   boardCommission    BoardCommission? @relation(fields: [boardCommissionId], references: [id])
   boardCommissionId String?
   employmentType    EmploymentType
-  description       String
-  qualifications     String?
+  description       String           // sanitized HTML from the admin rich-text editor
+  qualifications     String?         // sanitized HTML from the admin rich-text editor
+  payType            PayType?
+  payMin             Float?
+  payMax             Float?
+  payNote            String?         // e.g. "commensurate with experience", "+ benefits"
   postedDate         DateTime        @default(now())
   closingDate        DateTime?
   status             VacancyStatus   @default(OPEN)

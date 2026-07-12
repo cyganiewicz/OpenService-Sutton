@@ -13,8 +13,25 @@
       <div class="alert alert-info">There are no open vacancies in this category right now. Please check back soon.</div>
     <% } %>
 
+    <%
+      function formatPay(v) {
+        if (!v.payType) return null;
+        if (v.payType === 'UNPAID') return 'Unpaid / Volunteer' + (v.payNote ? ' — ' + v.payNote : '');
+        var suffix = v.payType === 'HOURLY' ? '/hr' : (v.payType === 'SALARIED' ? '/yr' : '');
+        var fmt = function (n) { return '$' + Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 }); };
+        var range = null;
+        if (v.payMin != null && v.payMax != null && Number(v.payMin) !== Number(v.payMax)) range = fmt(v.payMin) + '–' + fmt(v.payMax) + suffix;
+        else if (v.payMin != null) range = fmt(v.payMin) + suffix;
+        else if (v.payMax != null) range = fmt(v.payMax) + suffix;
+        var label = v.payType === 'STIPEND' ? 'Stipend' : '';
+        var parts = [label, range, v.payNote].filter(Boolean);
+        return parts.length ? parts.join(' · ') : null;
+      }
+    %>
+
     <div class="card-grid">
       <% vacancies.forEach(function(v) { %>
+        <% var payLine = formatPay(v); %>
         <div class="card">
           <span class="badge <%= v.category === 'BOARD_COMMISSION' ? 'badge-board' : 'badge-dept' %>">
             <%= v.category === 'BOARD_COMMISSION' ? 'Board / Commission' : 'Town Department' %>
@@ -22,8 +39,9 @@
           <span class="badge badge-status"><%= v.employmentType.replace('_',' ') %></span>
           <h3 style="margin-top:10px;"><%= v.title %></h3>
           <p style="font-weight:600;color:#16294a;"><%= v.departmentOrBoard %></p>
-          <p><%= v.description %></p>
-          <% if (v.qualifications) { %><p><strong>Qualifications:</strong> <%= v.qualifications %></p><% } %>
+          <% if (payLine) { %><p style="font-weight:600;color:var(--success);"><%= payLine %></p><% } %>
+          <div class="rich-content"><%- v.description %></div>
+          <% if (v.qualifications) { %><p><strong>Qualifications:</strong></p><div class="rich-content"><%- v.qualifications %></div><% } %>
           <p class="hint">Posted <%= v.postedDate.toDateString() %><% if (v.closingDate) { %> · Closes <%= v.closingDate.toDateString() %><% } %></p>
           <% if (v.category === 'BOARD_COMMISSION') { %>
             <a class="btn btn-navy btn-sm" href="/volunteer-application?vacancy=<%= v.id %>">Apply to Volunteer</a>

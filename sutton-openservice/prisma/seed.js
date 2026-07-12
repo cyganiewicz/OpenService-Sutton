@@ -91,6 +91,9 @@ async function main() {
       employmentType: "PART_TIME",
       description: "Provides administrative and clerical support to the Town Clerk's Office, including records management and front-counter resident services.",
       qualifications: "High school diploma required; municipal experience a plus.",
+      payType: "HOURLY",
+      payMin: 18.5,
+      payMax: 22.0,
       status: "OPEN",
     },
   });

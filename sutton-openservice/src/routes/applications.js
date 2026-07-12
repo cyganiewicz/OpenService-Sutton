@@ -171,6 +171,76 @@ function collectRows(body, prefix, keys, count) {
   return rows;
 }
 
+// Builds the Prisma `data` object for an EmploymentApplication from raw form
+// fields. Shared between the public submit handler and the admin edit
+// screen (src/routes/admin.js) so the two never drift out of sync.
+function employmentDataFromBody(b) {
+  const employmentHistory = collectRows(
+    b,
+    "emp",
+    ["employerName", "address", "jobTitle", "datesFrom", "datesTo", "workPerformed", "supervisor", "mayContact", "reasonLeaving"],
+    3
+  );
+
+  const education = EDUCATION_LEVELS.map((level, i) => ({
+    level,
+    school: b[`edu_school_${i}`] || "",
+    dates: b[`edu_dates_${i}`] || "",
+    diploma: b[`edu_diploma_${i}`] || "",
+    graduated: b[`edu_graduated_${i}`] === "yes",
+  })).filter((row) => row.school || row.dates || row.diploma);
+
+  const computerSkills = {};
+  for (const skill of COMPUTER_SKILLS) {
+    const level = b[`skill_${skill}`];
+    if (level) computerSkills[skill] = level;
+  }
+
+  const references = collectRows(b, "ref", ["name", "address", "phone"], 3);
+
+  return {
+    vacancyId: b.vacancyId || null,
+    referralSource: b.referralSource || null,
+    lastName: b.lastName,
+    firstName: b.firstName,
+    middleName: b.middleName || null,
+    addressStreet: b.addressStreet,
+    addressCity: b.addressCity,
+    addressState: b.addressState || "MA",
+    addressZip: b.addressZip,
+    email: b.email,
+    phoneHome: b.phoneHome || null,
+    phoneCell: b.phoneCell || null,
+    workEligible: toBool(b.workEligible),
+    ageEighteenOrOlder: toBool(b.ageEighteenOrOlder),
+    workedForTownBefore: toBool(b.workedForTownBefore),
+    priorEmploymentFrom: b.priorEmploymentFrom || null,
+    priorEmploymentTo: b.priorEmploymentTo || null,
+    priorDepartment: b.priorDepartment || null,
+    capableOfDuties: toBool(b.capableOfDuties),
+    incapableDutiesDetail: b.incapableDutiesDetail || null,
+    currentlyEmployed: toBool(b.currentlyEmployed),
+    onLayoffRecall: toBool(b.onLayoffRecall),
+    employmentHistory,
+    volunteerWorkHistory: b.volunteerWorkHistory || null,
+    education,
+    specializedTraining: b.specializedTraining || null,
+    additionalInfo: b.additionalInfo || null,
+    computerSkills,
+    veteran: toBool(b.veteran),
+    militaryBranch: b.militaryBranch || null,
+    militaryRankDischarged: b.militaryRankDischarged || null,
+    militaryDischargeStatus: b.militaryDischargeStatus || null,
+    presentMilitaryStatus: b.presentMilitaryStatus || null,
+    militaryServiceSchool: b.militaryServiceSchool || null,
+    civicActivities: b.civicActivities || null,
+    references,
+    signatureTypedName: b.signatureTypedName,
+    signatureDate: new Date(),
+    acknowledged: b.acknowledged === "on",
+  };
+}
+
 async function employmentValidationGate(req, res, next) {
   const errors = validationResult(req);
   if (errors.isEmpty()) return next();
@@ -197,73 +267,8 @@ router.post(
       if (honeypotTripped(req)) {
         return res.render("application-success", { title: "Application Received", kind: "employment" });
       }
-      const b = req.body;
-
-      const employmentHistory = collectRows(
-        b,
-        "emp",
-        ["employerName", "address", "jobTitle", "datesFrom", "datesTo", "workPerformed", "supervisor", "mayContact", "reasonLeaving"],
-        3
-      );
-
-      const education = EDUCATION_LEVELS.map((level, i) => ({
-        level,
-        school: b[`edu_school_${i}`] || "",
-        dates: b[`edu_dates_${i}`] || "",
-        diploma: b[`edu_diploma_${i}`] || "",
-        graduated: b[`edu_graduated_${i}`] === "yes",
-      })).filter((row) => row.school || row.dates || row.diploma);
-
-      const computerSkills = {};
-      for (const skill of COMPUTER_SKILLS) {
-        const level = b[`skill_${skill}`];
-        if (level) computerSkills[skill] = level;
-      }
-
-      const references = collectRows(b, "ref", ["name", "address", "phone"], 3);
-
-      const data = {
-        vacancyId: b.vacancyId || null,
-        referralSource: b.referralSource || null,
-        lastName: b.lastName,
-        firstName: b.firstName,
-        middleName: b.middleName || null,
-        addressStreet: b.addressStreet,
-        addressCity: b.addressCity,
-        addressState: b.addressState || "MA",
-        addressZip: b.addressZip,
-        email: b.email,
-        phoneHome: b.phoneHome || null,
-        phoneCell: b.phoneCell || null,
-        workEligible: toBool(b.workEligible),
-        ageEighteenOrOlder: toBool(b.ageEighteenOrOlder),
-        workedForTownBefore: toBool(b.workedForTownBefore),
-        priorEmploymentFrom: b.priorEmploymentFrom || null,
-        priorEmploymentTo: b.priorEmploymentTo || null,
-        priorDepartment: b.priorDepartment || null,
-        capableOfDuties: toBool(b.capableOfDuties),
-        incapableDutiesDetail: b.incapableDutiesDetail || null,
-        currentlyEmployed: toBool(b.currentlyEmployed),
-        onLayoffRecall: toBool(b.onLayoffRecall),
-        employmentHistory,
-        volunteerWorkHistory: b.volunteerWorkHistory || null,
-        education,
-        specializedTraining: b.specializedTraining || null,
-        additionalInfo: b.additionalInfo || null,
-        computerSkills,
-        veteran: toBool(b.veteran),
-        militaryBranch: b.militaryBranch || null,
-        militaryRankDischarged: b.militaryRankDischarged || null,
-        militaryDischargeStatus: b.militaryDischargeStatus || null,
-        presentMilitaryStatus: b.presentMilitaryStatus || null,
-        militaryServiceSchool: b.militaryServiceSchool || null,
-        civicActivities: b.civicActivities || null,
-        references,
-        signatureTypedName: b.signatureTypedName,
-        signatureDate: new Date(),
-        acknowledged: b.acknowledged === "on",
-        submittedIp: req.ip,
-      };
+      const data = employmentDataFromBody(req.body);
+      data.submittedIp = req.ip;
 
       if (req.file) {
         data.resumeFileName = req.file.originalname.slice(0, 200);
@@ -289,5 +294,17 @@ router.post(
     }
   }
 );
+
+// Shared with src/routes/admin.js (application-editing screens) so the field
+// list, JSON-row parsing, and validation rules live in exactly one place.
+// `router` is a function, so it can carry these as properties without
+// changing how app.js consumes this module (`app.use(applicationRoutes)`).
+router.COMPUTER_SKILLS = COMPUTER_SKILLS;
+router.EDUCATION_LEVELS = EDUCATION_LEVELS;
+router.toBool = toBool;
+router.collectRows = collectRows;
+router.volunteerValidators = volunteerValidators;
+router.employmentValidators = employmentValidators;
+router.employmentDataFromBody = employmentDataFromBody;
 
 module.exports = router;

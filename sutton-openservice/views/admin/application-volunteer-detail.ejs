@@ -1,7 +1,10 @@
 <div class="admin-shell">
   <%- include('../partials/admin-sidebar') %>
   <div class="admin-content">
-    <h1 class="section-title"><%= app.firstName %> <%= app.lastName %></h1>
+    <div class="admin-topbar">
+      <h1 class="section-title" style="margin:0;"><%= app.firstName %> <%= app.lastName %></h1>
+      <a class="btn btn-sm btn-navy" href="/admin/applications/volunteer/<%= app.id %>/edit">Edit Application</a>
+    </div>
     <div class="detail-grid">
       <div class="detail-item"><div class="k">Email</div><div class="v"><%= app.email %></div></div>
       <div class="detail-item"><div class="k">Phone</div><div class="v"><%= app.phone %></div></div>

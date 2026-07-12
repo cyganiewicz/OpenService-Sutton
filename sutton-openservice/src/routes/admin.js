@@ -1,11 +1,49 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const { body, validationResult } = require("express-validator");
 const prisma = require("../db");
-const { requireAdmin } = require("../middleware/auth");
+const { requireAdmin, requireRole } = require("../middleware/auth");
 const { handleValidation } = require("../middleware/validate");
 const { loginLimiter } = require("../middleware/security");
+const { sanitizeRichText } = require("../utils/richText");
+const applicationRoutes = require("./applications");
+const {
+  COMPUTER_SKILLS,
+  EDUCATION_LEVELS,
+  volunteerValidators,
+  employmentValidators,
+  employmentDataFromBody,
+} = applicationRoutes;
 const router = express.Router();
+
+// Same field validation as the public employment form, minus the
+// signature/acknowledgement checks — the edit screen deliberately has no
+// acknowledgement checkbox, since editing doesn't re-execute the applicant's
+// original legal signature (see employmentAppToFormValues / the edit route).
+// Listed explicitly (rather than filtering employmentValidators by internal
+// structure) so this doesn't depend on express-validator's internal shape.
+const employmentEditValidators = [
+  body("lastName").trim().notEmpty().withMessage("Last name is required.").isLength({ max: 100 }).escape(),
+  body("firstName").trim().notEmpty().withMessage("First name is required.").isLength({ max: 100 }).escape(),
+  body("middleName").optional({ checkFalsy: true }).isLength({ max: 100 }).escape(),
+  body("addressStreet").trim().notEmpty().withMessage("Street address is required.").isLength({ max: 200 }).escape(),
+  body("addressCity").trim().notEmpty().withMessage("City/Town is required.").isLength({ max: 100 }).escape(),
+  body("addressState").trim().notEmpty().isLength({ max: 2 }).escape(),
+  body("addressZip").trim().notEmpty().withMessage("ZIP code is required.").isLength({ max: 10 }).escape(),
+  body("email").trim().isEmail().withMessage("A valid email is required.").normalizeEmail(),
+  body("workEligible").notEmpty().withMessage("Please answer the work-eligibility question."),
+  body("ageEighteenOrOlder").notEmpty().withMessage("Please answer the age question."),
+  body("workedForTownBefore").notEmpty().withMessage("Please answer whether you've worked for the Town before."),
+  body("capableOfDuties").notEmpty().withMessage("Please answer the duties question."),
+  body("currentlyEmployed").notEmpty(),
+  body("onLayoffRecall").notEmpty(),
+];
+
+function generateTempPassword() {
+  // 16 random bytes, base64url-ish, trimmed to a typeable length.
+  return crypto.randomBytes(12).toString("base64").replace(/[+/=]/g, "").slice(0, 14);
+}
 
 /* --------------------------------- Auth ---------------------------------- */
 
@@ -37,7 +75,13 @@ router.post(
       // Regenerate the session on privilege change to prevent session fixation.
       req.session.regenerate(async (err) => {
         if (err) return next(err);
-        req.session.adminUser = { id: user.id, name: user.name, email: user.email, role: user.role };
+        req.session.adminUser = {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          mustChangePassword: user.mustChangePassword,
+        };
         await prisma.adminUser.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
         const dest = req.body.next && req.body.next.startsWith("/admin") ? req.body.next : "/admin";
         res.redirect(dest);
@@ -54,6 +98,144 @@ router.post("/admin/logout", requireAdmin, (req, res, next) => {
     res.clearCookie("connect.sid");
     res.redirect("/admin/login");
   });
+});
+
+/* ------------------------------ Own account ------------------------------- */
+// Note: requireAdmin lets these two routes through even when
+// mustChangePassword is set — otherwise nobody could ever clear the flag.
+
+router.get("/admin/account/password", requireAdmin, (req, res) => {
+  res.render("admin/change-password", {
+    title: "Change Password",
+    errors: {},
+    forced: Boolean(req.session.adminUser.mustChangePassword),
+  });
+});
+
+router.post(
+  "/admin/account/password",
+  requireAdmin,
+  [
+    body("currentPassword").notEmpty().withMessage("Current password is required."),
+    body("newPassword").isLength({ min: 10 }).withMessage("New password must be at least 10 characters."),
+    body("confirmPassword").custom((value, { req }) => value === req.body.newPassword).withMessage("Passwords do not match."),
+  ],
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      const forced = Boolean(req.session.adminUser.mustChangePassword);
+      if (!errors.isEmpty()) {
+        return res.status(422).render("admin/change-password", { title: "Change Password", errors: errors.mapped(), forced });
+      }
+      const user = await prisma.adminUser.findUnique({ where: { id: req.session.adminUser.id } });
+      const ok = await bcrypt.compare(req.body.currentPassword, user.passwordHash);
+      if (!ok) {
+        return res.status(401).render("admin/change-password", {
+          title: "Change Password",
+          errors: { currentPassword: { msg: "Current password is incorrect." } },
+          forced,
+        });
+      }
+      const passwordHash = await bcrypt.hash(req.body.newPassword, 12);
+      await prisma.adminUser.update({ where: { id: user.id }, data: { passwordHash, mustChangePassword: false } });
+      req.session.adminUser.mustChangePassword = false;
+      res.redirect("/admin");
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/* ------------------------------ Staff accounts ----------------------------- */
+// ADMINISTRATOR-only: create/manage other admin & staff logins. STAFF accounts
+// can do everything else in this file (vacancies, boards, applications) but
+// cannot reach any /admin/staff route.
+
+router.get("/admin/staff", requireAdmin, requireRole("ADMINISTRATOR"), async (req, res, next) => {
+  try {
+    const staff = await prisma.adminUser.findMany({ orderBy: { createdAt: "asc" } });
+    res.render("admin/staff", { title: "Staff Accounts", staff, generatedPassword: null, errors: {} });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post(
+  "/admin/staff/new",
+  requireAdmin,
+  requireRole("ADMINISTRATOR"),
+  [
+    body("name").trim().notEmpty().withMessage("Name is required.").isLength({ max: 150 }).escape(),
+    body("email").trim().isEmail().withMessage("A valid email is required.").normalizeEmail(),
+    body("role").isIn(["ADMINISTRATOR", "STAFF"]),
+  ],
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      const staff = await prisma.adminUser.findMany({ orderBy: { createdAt: "asc" } });
+      if (!errors.isEmpty()) {
+        return res.status(422).render("admin/staff", { title: "Staff Accounts", staff, generatedPassword: null, errors: errors.mapped() });
+      }
+      const existing = await prisma.adminUser.findUnique({ where: { email: req.body.email } });
+      if (existing) {
+        return res.status(422).render("admin/staff", {
+          title: "Staff Accounts",
+          staff,
+          generatedPassword: null,
+          errors: { email: { msg: "An account with that email already exists." } },
+        });
+      }
+      const tempPassword = generateTempPassword();
+      const passwordHash = await bcrypt.hash(tempPassword, 12);
+      const created = await prisma.adminUser.create({
+        data: { name: req.body.name, email: req.body.email, role: req.body.role, passwordHash, mustChangePassword: true },
+      });
+      const refreshedStaff = await prisma.adminUser.findMany({ orderBy: { createdAt: "asc" } });
+      // The temp password is shown exactly once, here, and never stored in
+      // plaintext or logged — share it with the new staff member out of band.
+      res.render("admin/staff", {
+        title: "Staff Accounts",
+        staff: refreshedStaff,
+        generatedPassword: { email: created.email, password: tempPassword },
+        errors: {},
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+router.post("/admin/staff/:id/toggle-active", requireAdmin, requireRole("ADMINISTRATOR"), async (req, res, next) => {
+  try {
+    if (req.params.id === req.session.adminUser.id) {
+      return res.redirect("/admin/staff"); // can't deactivate yourself
+    }
+    const user = await prisma.adminUser.findUnique({ where: { id: req.params.id } });
+    if (!user) return res.status(404).render("errors/404", { title: "Not Found" });
+    await prisma.adminUser.update({ where: { id: user.id }, data: { active: !user.active } });
+    res.redirect("/admin/staff");
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/admin/staff/:id/reset-password", requireAdmin, requireRole("ADMINISTRATOR"), async (req, res, next) => {
+  try {
+    const user = await prisma.adminUser.findUnique({ where: { id: req.params.id } });
+    if (!user) return res.status(404).render("errors/404", { title: "Not Found" });
+    const tempPassword = generateTempPassword();
+    const passwordHash = await bcrypt.hash(tempPassword, 12);
+    await prisma.adminUser.update({ where: { id: user.id }, data: { passwordHash, mustChangePassword: true } });
+    const staff = await prisma.adminUser.findMany({ orderBy: { createdAt: "asc" } });
+    res.render("admin/staff", {
+      title: "Staff Accounts",
+      staff,
+      generatedPassword: { email: user.email, password: tempPassword },
+      errors: {},
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 /* ------------------------------- Dashboard -------------------------------- */
@@ -110,8 +292,15 @@ const vacancyValidators = [
   body("category").isIn(["BOARD_COMMISSION", "TOWN_DEPARTMENT"]),
   body("departmentOrBoard").trim().notEmpty().isLength({ max: 200 }).escape(),
   body("employmentType").isIn(["FULL_TIME", "PART_TIME", "SEASONAL", "APPOINTED", "VOLUNTEER"]),
-  body("description").trim().notEmpty().isLength({ max: 5000 }),
-  body("qualifications").optional({ checkFalsy: true }).isLength({ max: 3000 }),
+  // description/qualifications are rich-text HTML from the admin editor —
+  // NOT escaped here (that would turn "<" into "&lt;" and break the tags);
+  // they're run through sanitize-html at save time instead (see below).
+  body("description").trim().notEmpty().isLength({ max: 8000 }),
+  body("qualifications").optional({ checkFalsy: true }).isLength({ max: 5000 }),
+  body("payType").optional({ checkFalsy: true }).isIn(["HOURLY", "SALARIED", "STIPEND", "UNPAID", "OTHER"]),
+  body("payMin").optional({ checkFalsy: true }).isFloat({ min: 0, max: 10000000 }),
+  body("payMax").optional({ checkFalsy: true }).isFloat({ min: 0, max: 10000000 }),
+  body("payNote").optional({ checkFalsy: true }).trim().isLength({ max: 200 }).escape(),
   body("status").isIn(["OPEN", "CLOSED"]),
 ];
 
@@ -128,22 +317,27 @@ async function vacancyValidationGate(req, res, next) {
   });
 }
 
+function vacancyDataFromBody(b) {
+  return {
+    title: b.title,
+    category: b.category,
+    departmentOrBoard: b.departmentOrBoard,
+    boardCommissionId: b.boardCommissionId || null,
+    employmentType: b.employmentType,
+    description: sanitizeRichText(b.description),
+    qualifications: b.qualifications ? sanitizeRichText(b.qualifications) : null,
+    payType: b.payType || null,
+    payMin: b.payMin ? Number(b.payMin) : null,
+    payMax: b.payMax ? Number(b.payMax) : null,
+    payNote: b.payNote || null,
+    status: b.status,
+    closingDate: b.closingDate ? new Date(b.closingDate) : null,
+  };
+}
+
 router.post("/admin/vacancies/new", requireAdmin, vacancyValidators, vacancyValidationGate, async (req, res, next) => {
   try {
-    const b = req.body;
-    await prisma.jobVacancy.create({
-      data: {
-        title: b.title,
-        category: b.category,
-        departmentOrBoard: b.departmentOrBoard,
-        boardCommissionId: b.boardCommissionId || null,
-        employmentType: b.employmentType,
-        description: b.description,
-        qualifications: b.qualifications || null,
-        status: b.status,
-        closingDate: b.closingDate ? new Date(b.closingDate) : null,
-      },
-    });
+    await prisma.jobVacancy.create({ data: vacancyDataFromBody(req.body) });
     res.redirect("/admin/vacancies");
   } catch (err) {
     next(err);
@@ -152,21 +346,7 @@ router.post("/admin/vacancies/new", requireAdmin, vacancyValidators, vacancyVali
 
 router.post("/admin/vacancies/:id/edit", requireAdmin, vacancyValidators, vacancyValidationGate, async (req, res, next) => {
   try {
-    const b = req.body;
-    await prisma.jobVacancy.update({
-      where: { id: req.params.id },
-      data: {
-        title: b.title,
-        category: b.category,
-        departmentOrBoard: b.departmentOrBoard,
-        boardCommissionId: b.boardCommissionId || null,
-        employmentType: b.employmentType,
-        description: b.description,
-        qualifications: b.qualifications || null,
-        status: b.status,
-        closingDate: b.closingDate ? new Date(b.closingDate) : null,
-      },
-    });
+    await prisma.jobVacancy.update({ where: { id: req.params.id }, data: vacancyDataFromBody(req.body) });
     res.redirect("/admin/vacancies");
   } catch (err) {
     next(err);
@@ -314,6 +494,62 @@ router.post("/admin/applications/volunteer/:id/status", requireAdmin, async (req
   }
 });
 
+router.get("/admin/applications/volunteer/:id/edit", requireAdmin, async (req, res, next) => {
+  try {
+    const [app, vacancies] = await Promise.all([
+      prisma.volunteerApplication.findUnique({ where: { id: req.params.id } }),
+      prisma.jobVacancy.findMany({ where: { category: "BOARD_COMMISSION" }, orderBy: { title: "asc" } }),
+    ]);
+    if (!app) return res.status(404).render("errors/404", { title: "Not Found" });
+    res.render("admin/application-volunteer-edit", { title: "Edit Volunteer Application", app, vacancies, errors: {} });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post(
+  "/admin/applications/volunteer/:id/edit",
+  requireAdmin,
+  volunteerValidators,
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        const vacancies = await prisma.jobVacancy.findMany({ where: { category: "BOARD_COMMISSION" }, orderBy: { title: "asc" } });
+        return res.status(422).render("admin/application-volunteer-edit", {
+          title: "Edit Volunteer Application",
+          app: { id: req.params.id, ...req.body },
+          vacancies,
+          errors: errors.mapped(),
+        });
+      }
+      const b = req.body;
+      await prisma.volunteerApplication.update({
+        where: { id: req.params.id },
+        data: {
+          vacancyId: b.vacancyId || null,
+          boardsInterestedIn: b.boardsInterestedIn,
+          firstName: b.firstName,
+          lastName: b.lastName,
+          email: b.email,
+          phone: b.phone,
+          addressStreet: b.addressStreet,
+          addressCity: b.addressCity,
+          addressState: b.addressState || "MA",
+          addressZip: b.addressZip,
+          availability: b.availability || null,
+          relevantExperience: b.relevantExperience || null,
+          whyInterested: b.whyInterested || null,
+          referralSource: b.referralSource || null,
+        },
+      });
+      res.redirect(`/admin/applications/volunteer/${req.params.id}`);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 router.get("/admin/applications/employment", requireAdmin, async (req, res, next) => {
   try {
     const apps = await prisma.employmentApplication.findMany({
@@ -339,6 +575,149 @@ router.get("/admin/applications/employment/:id", requireAdmin, async (req, res, 
 router.post("/admin/applications/employment/:id/status", requireAdmin, async (req, res, next) => {
   try {
     await prisma.employmentApplication.update({ where: { id: req.params.id }, data: { status: req.body.status } });
+    res.redirect(`/admin/applications/employment/${req.params.id}`);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// The employment form's field names are flat (emp_employerName_0, edu_school_1,
+// "skill_Word Processing", ref_name_0, ...) because that's what the repeating
+// paper-form sections need. The DB stores the repeating sections as JSON, so
+// re-editing requires converting DB shape -> flat form-field shape. Doing
+// that conversion once here means the GET (load from DB) and POST-with-errors
+// (re-render what the admin just typed) paths can share one template that
+// only ever reads a flat `values` object — same pattern the public form uses.
+function employmentAppToFormValues(app) {
+  const values = {
+    vacancyId: app.vacancyId || "",
+    referralSource: app.referralSource || "",
+    lastName: app.lastName,
+    firstName: app.firstName,
+    middleName: app.middleName || "",
+    addressStreet: app.addressStreet,
+    addressCity: app.addressCity,
+    addressState: app.addressState,
+    addressZip: app.addressZip,
+    email: app.email,
+    phoneHome: app.phoneHome || "",
+    phoneCell: app.phoneCell || "",
+    workEligible: app.workEligible ? "yes" : "no",
+    ageEighteenOrOlder: app.ageEighteenOrOlder ? "yes" : "no",
+    workedForTownBefore: app.workedForTownBefore ? "yes" : "no",
+    priorEmploymentFrom: app.priorEmploymentFrom || "",
+    priorEmploymentTo: app.priorEmploymentTo || "",
+    priorDepartment: app.priorDepartment || "",
+    capableOfDuties: app.capableOfDuties ? "yes" : "no",
+    incapableDutiesDetail: app.incapableDutiesDetail || "",
+    currentlyEmployed: app.currentlyEmployed ? "yes" : "no",
+    onLayoffRecall: app.onLayoffRecall ? "yes" : "no",
+    volunteerWorkHistory: app.volunteerWorkHistory || "",
+    specializedTraining: app.specializedTraining || "",
+    additionalInfo: app.additionalInfo || "",
+    veteran: app.veteran ? "yes" : "no",
+    militaryBranch: app.militaryBranch || "",
+    militaryRankDischarged: app.militaryRankDischarged || "",
+    militaryDischargeStatus: app.militaryDischargeStatus || "",
+    presentMilitaryStatus: app.presentMilitaryStatus || "",
+    militaryServiceSchool: app.militaryServiceSchool || "",
+    civicActivities: app.civicActivities || "",
+    signatureTypedName: app.signatureTypedName,
+    acknowledged: app.acknowledged ? "on" : "",
+  };
+
+  (app.employmentHistory || []).forEach((row, i) => {
+    values[`emp_employerName_${i}`] = row.employerName || "";
+    values[`emp_address_${i}`] = row.address || "";
+    values[`emp_jobTitle_${i}`] = row.jobTitle || "";
+    values[`emp_datesFrom_${i}`] = row.datesFrom || "";
+    values[`emp_datesTo_${i}`] = row.datesTo || "";
+    values[`emp_workPerformed_${i}`] = row.workPerformed || "";
+    values[`emp_supervisor_${i}`] = row.supervisor || "";
+    values[`emp_mayContact_${i}`] = row.mayContact || "";
+    values[`emp_reasonLeaving_${i}`] = row.reasonLeaving || "";
+  });
+
+  (app.education || []).forEach((row) => {
+    const i = EDUCATION_LEVELS.indexOf(row.level);
+    if (i === -1) return;
+    values[`edu_school_${i}`] = row.school || "";
+    values[`edu_dates_${i}`] = row.dates || "";
+    values[`edu_diploma_${i}`] = row.diploma || "";
+    values[`edu_graduated_${i}`] = row.graduated ? "yes" : "no";
+  });
+
+  for (const [skill, level] of Object.entries(app.computerSkills || {})) {
+    values[`skill_${skill}`] = level;
+  }
+
+  (app.references || []).forEach((row, i) => {
+    values[`ref_name_${i}`] = row.name || "";
+    values[`ref_address_${i}`] = row.address || "";
+    values[`ref_phone_${i}`] = row.phone || "";
+  });
+
+  return values;
+}
+
+router.get("/admin/applications/employment/:id/edit", requireAdmin, async (req, res, next) => {
+  try {
+    const [app, vacancies] = await Promise.all([
+      prisma.employmentApplication.findUnique({ where: { id: req.params.id } }),
+      prisma.jobVacancy.findMany({ where: { category: "TOWN_DEPARTMENT" }, orderBy: { title: "asc" } }),
+    ]);
+    if (!app) return res.status(404).render("errors/404", { title: "Not Found" });
+    res.render("admin/application-employment-edit", {
+      title: "Edit Employment Application",
+      appId: app.id,
+      hasResume: Boolean(app.resumeFileName),
+      resumeFileName: app.resumeFileName,
+      values: employmentAppToFormValues(app),
+      vacancies,
+      errors: {},
+      COMPUTER_SKILLS,
+      EDUCATION_LEVELS,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/admin/applications/employment/:id/edit", requireAdmin, employmentEditValidators, async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    const existing = await prisma.employmentApplication.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).render("errors/404", { title: "Not Found" });
+
+    if (!errors.isEmpty()) {
+      const vacancies = await prisma.jobVacancy.findMany({ where: { category: "TOWN_DEPARTMENT" }, orderBy: { title: "asc" } });
+      return res.status(422).render("admin/application-employment-edit", {
+        title: "Edit Employment Application",
+        appId: req.params.id,
+        hasResume: Boolean(existing.resumeFileName),
+        resumeFileName: existing.resumeFileName,
+        values: req.body,
+        vacancies,
+        errors: errors.mapped(),
+        COMPUTER_SKILLS,
+        EDUCATION_LEVELS,
+      });
+    }
+
+    const data = employmentDataFromBody(req.body);
+    // Editing corrects contact/history details — it does not re-execute the
+    // applicant's original legal acknowledgement/signature or touch their
+    // uploaded resume, so those are preserved from the existing record.
+    delete data.signatureDate;
+    await prisma.employmentApplication.update({
+      where: { id: req.params.id },
+      data: {
+        ...data,
+        signatureTypedName: existing.signatureTypedName,
+        signatureDate: existing.signatureDate,
+        acknowledged: existing.acknowledged,
+      },
+    });
     res.redirect(`/admin/applications/employment/${req.params.id}`);
   } catch (err) {
     next(err);

@@ -40,8 +40,40 @@
             <% }); %>
           </select>
         </div>
-        <div class="field"><label>Description *</label><textarea name="description" required><%= vacancy ? vacancy.description : '' %></textarea></div>
-        <div class="field"><label>Qualifications</label><textarea name="qualifications"><%= vacancy ? vacancy.qualifications : '' %></textarea></div>
+        <div class="field">
+          <label id="description-label">Description *</label>
+          <textarea id="description" name="description" data-rte required><%= vacancy ? vacancy.description : '' %></textarea>
+          <div class="hint">Use the toolbar for basic formatting (bold, lists, links). Saved formatting is sanitized server-side.</div>
+        </div>
+        <div class="field">
+          <label id="qualifications-label">Qualifications</label>
+          <textarea id="qualifications" name="qualifications" data-rte><%= vacancy ? vacancy.qualifications : '' %></textarea>
+        </div>
+
+        <div class="form-section-title">Compensation</div>
+        <div class="field-row">
+          <div class="field">
+            <label>Pay type</label>
+            <select name="payType">
+              <option value="">— Not specified —</option>
+              <% ['HOURLY','SALARIED','STIPEND','UNPAID','OTHER'].forEach(function(t){ %>
+                <option value="<%= t %>" <%= vacancy && vacancy.payType===t ? 'selected':'' %>><%= t.charAt(0) + t.slice(1).toLowerCase() %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="field">
+            <label>Min <%= vacancy && vacancy.payType === 'HOURLY' ? '($/hr)' : '($/yr)' %></label>
+            <input type="number" step="0.01" min="0" name="payMin" value="<%= vacancy && vacancy.payMin != null ? vacancy.payMin : '' %>">
+          </div>
+          <div class="field">
+            <label>Max <%= vacancy && vacancy.payType === 'HOURLY' ? '($/hr)' : '($/yr)' %></label>
+            <input type="number" step="0.01" min="0" name="payMax" value="<%= vacancy && vacancy.payMax != null ? vacancy.payMax : '' %>">
+          </div>
+        </div>
+        <div class="field">
+          <label>Pay note (optional)</label>
+          <input type="text" name="payNote" placeholder="e.g. commensurate with experience, plus benefits" value="<%= vacancy && vacancy.payNote ? vacancy.payNote : '' %>">
+        </div>
         <%
           var closingDateStr = '';
           if (vacancy && vacancy.closingDate) {
