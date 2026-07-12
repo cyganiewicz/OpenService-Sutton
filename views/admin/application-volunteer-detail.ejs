@@ -1,0 +1,37 @@
+<div class="admin-shell">
+  <%- include('../partials/admin-sidebar') %>
+  <div class="admin-content">
+    <div class="admin-topbar">
+      <h1 class="section-title" style="margin:0;"><%= app.firstName %> <%= app.lastName %></h1>
+      <a class="btn btn-sm btn-navy" href="/admin/applications/volunteer/<%= app.id %>/edit">Edit Application</a>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-item"><div class="k">Email</div><div class="v"><%= app.email %></div></div>
+      <div class="detail-item"><div class="k">Phone</div><div class="v"><%= app.phone %></div></div>
+      <div class="detail-item"><div class="k">Address</div><div class="v"><%= app.addressStreet %>, <%= app.addressCity %>, <%= app.addressState %> <%= app.addressZip %></div></div>
+      <div class="detail-item"><div class="k">Submitted</div><div class="v"><%= app.submittedAt.toLocaleString() %></div></div>
+      <div class="detail-item"><div class="k">Boards Interested</div><div class="v"><%= app.boardsInterestedIn %></div></div>
+      <div class="detail-item"><div class="k">Linked Vacancy</div><div class="v"><%= app.vacancy ? app.vacancy.title : '—' %></div></div>
+      <div class="detail-item"><div class="k">Referral Source</div><div class="v"><%= app.referralSource || '—' %></div></div>
+    </div>
+    <div class="card" style="margin-bottom:16px;">
+      <h3>Availability</h3><p><%= app.availability || '—' %></p>
+      <h3>Relevant Experience</h3><p><%= app.relevantExperience || '—' %></p>
+      <h3>Why Interested</h3><p><%= app.whyInterested || '—' %></p>
+    </div>
+    <form method="POST" action="/admin/applications/volunteer/<%= app.id %>/status">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="field-row" style="align-items:flex-end;">
+        <div class="field">
+          <label>Status</label>
+          <select name="status">
+            <% ['NEW','UNDER_REVIEW','INTERVIEWING','CLOSED'].forEach(function(s){ %>
+              <option value="<%= s %>" <%= app.status===s?'selected':'' %>><%= s.replace('_',' ') %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="field"><button class="btn btn-primary" type="submit">Update Status</button></div>
+      </div>
+    </form>
+  </div>
+</div>

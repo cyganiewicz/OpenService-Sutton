@@ -1,0 +1,44 @@
+<div class="admin-shell">
+  <%- include('../partials/admin-sidebar') %>
+  <div class="admin-content">
+    <h1 class="section-title">Edit Volunteer Application</h1>
+    <div class="form-shell" style="margin:0;max-width:none;">
+      <% if (errors && errors.general) { %><div class="alert alert-error"><%= errors.general.msg %></div><% } %>
+      <form method="POST" action="/admin/applications/volunteer/<%= app.id %>/edit">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="field-row">
+          <div class="field <%= errors.firstName ? 'has-error' : '' %>"><label>First name *</label><input type="text" name="firstName" required value="<%= app.firstName %>"></div>
+          <div class="field <%= errors.lastName ? 'has-error' : '' %>"><label>Last name *</label><input type="text" name="lastName" required value="<%= app.lastName %>"></div>
+        </div>
+        <div class="field-row">
+          <div class="field <%= errors.email ? 'has-error' : '' %>"><label>Email *</label><input type="email" name="email" required value="<%= app.email %>"></div>
+          <div class="field <%= errors.phone ? 'has-error' : '' %>"><label>Phone *</label><input type="tel" name="phone" required value="<%= app.phone %>"></div>
+        </div>
+        <div class="field <%= errors.addressStreet ? 'has-error' : '' %>"><label>Street address *</label><input type="text" name="addressStreet" required value="<%= app.addressStreet %>"></div>
+        <div class="field-row">
+          <div class="field <%= errors.addressCity ? 'has-error' : '' %>"><label>Town/City *</label><input type="text" name="addressCity" required value="<%= app.addressCity %>"></div>
+          <div class="field"><label>State</label><input type="text" name="addressState" maxlength="2" value="<%= app.addressState || 'MA' %>"></div>
+          <div class="field <%= errors.addressZip ? 'has-error' : '' %>"><label>ZIP *</label><input type="text" name="addressZip" required value="<%= app.addressZip %>"></div>
+        </div>
+        <div class="field <%= errors.boardsInterestedIn ? 'has-error' : '' %>"><label>Boards/commissions interested in *</label><input type="text" name="boardsInterestedIn" required value="<%= app.boardsInterestedIn %>"></div>
+        <% if (vacancies.length) { %>
+        <div class="field">
+          <label>Linked vacancy</label>
+          <select name="vacancyId">
+            <option value="">— Not linked to a specific vacancy —</option>
+            <% vacancies.forEach(function(v) { %>
+              <option value="<%= v.id %>" <%= app.vacancyId === v.id ? 'selected' : '' %>><%= v.title %> (<%= v.departmentOrBoard %>)</option>
+            <% }); %>
+          </select>
+        </div>
+        <% } %>
+        <div class="field"><label>Availability</label><textarea name="availability"><%= app.availability || '' %></textarea></div>
+        <div class="field"><label>Relevant experience</label><textarea name="relevantExperience"><%= app.relevantExperience || '' %></textarea></div>
+        <div class="field"><label>Why interested</label><textarea name="whyInterested"><%= app.whyInterested || '' %></textarea></div>
+        <div class="field"><label>Referral source</label><input type="text" name="referralSource" value="<%= app.referralSource || '' %>"></div>
+        <button class="btn btn-primary" type="submit">Save Changes</button>
+        <a class="btn btn-outline" style="color:#16294a;border-color:#16294a;" href="/admin/applications/volunteer/<%= app.id %>">Cancel</a>
+      </form>
+    </div>
+  </div>
+</div>

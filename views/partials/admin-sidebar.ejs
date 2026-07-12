@@ -1,0 +1,15 @@
+<div class="admin-sidebar">
+  <a href="/admin" class="<%= currentPath === '/admin' ? 'active' : '' %>">Dashboard</a>
+  <a href="/admin/vacancies" class="<%= currentPath.startsWith('/admin/vacancies') ? 'active' : '' %>">Vacancies</a>
+  <a href="/admin/boards" class="<%= currentPath.startsWith('/admin/boards') ? 'active' : '' %>">Boards &amp; Members</a>
+  <a href="/admin/applications/volunteer" class="<%= currentPath.startsWith('/admin/applications/volunteer') ? 'active' : '' %>">Volunteer Applications</a>
+  <a href="/admin/applications/employment" class="<%= currentPath.startsWith('/admin/applications/employment') ? 'active' : '' %>">Employment Applications</a>
+  <% if (adminUser && adminUser.role === 'ADMINISTRATOR') { %>
+    <a href="/admin/staff" class="<%= currentPath.startsWith('/admin/staff') ? 'active' : '' %>">Staff Accounts</a>
+  <% } %>
+  <a href="/admin/account/password" class="<%= currentPath.startsWith('/admin/account/password') ? 'active' : '' %>">Change Password</a>
+  <form method="POST" action="/admin/logout" style="margin-top:16px;">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <button class="btn btn-sm btn-outline" style="color:#16294a;border-color:#16294a;width:100%;" type="submit">Log Out</button>
+  </form>
+</div>

@@ -1,0 +1,12 @@
+<div class="admin-shell">
+  <%- include('../partials/admin-sidebar') %>
+  <div class="admin-content">
+    <div class="admin-topbar"><h1 class="section-title" style="margin:0;">Welcome, <%= adminUser.name %></h1></div>
+    <div class="card-grid">
+      <div class="card stat-card"><div class="stat-num"><%= openVacancies %></div><div class="stat-label">Open vacancies</div></div>
+      <div class="card stat-card"><div class="stat-num"><%= boards %></div><div class="stat-label">Boards &amp; commissions</div></div>
+      <div class="card stat-card"><div class="stat-num"><%= newVolunteerApps %></div><div class="stat-label">New volunteer applications</div></div>
+      <div class="card stat-card"><div class="stat-num"><%= newEmploymentApps %></div><div class="stat-label">New employment applications</div></div>
+    </div>
+  </div>
+</div>

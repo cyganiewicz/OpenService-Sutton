@@ -1,0 +1,31 @@
+<div class="admin-shell">
+  <%- include('../partials/admin-sidebar') %>
+  <div class="admin-content">
+    <div class="admin-topbar">
+      <h1 class="section-title" style="margin:0;">Vacancies</h1>
+      <a class="btn btn-primary btn-sm" href="/admin/vacancies/new">+ New Vacancy</a>
+    </div>
+    <table class="data-table">
+      <thead><tr><th>Title</th><th>Category</th><th>Type</th><th>Status</th><th>Posted</th><th></th></tr></thead>
+      <tbody>
+        <% vacancies.forEach(function(v) { %>
+          <tr>
+            <td><%= v.title %><br><span class="hint"><%= v.departmentOrBoard %></span></td>
+            <td><%= v.category === 'BOARD_COMMISSION' ? 'Board/Commission' : 'Town Dept' %></td>
+            <td><%= v.employmentType.replace('_',' ') %></td>
+            <td><span class="badge <%= v.status === 'OPEN' ? 'badge-open' : 'badge-closed' %>"><%= v.status %></span></td>
+            <td><%= v.postedDate.toDateString() %></td>
+            <td>
+              <a class="btn btn-sm btn-outline" style="color:#16294a;border-color:#16294a;" href="/admin/vacancies/<%= v.id %>/edit">Edit</a>
+              <form method="POST" action="/admin/vacancies/<%= v.id %>/delete" style="display:inline" onsubmit="return confirm('Delete this vacancy?');">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+        <% if (!vacancies.length) { %><tr><td colspan="6">No vacancies yet.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+</div>

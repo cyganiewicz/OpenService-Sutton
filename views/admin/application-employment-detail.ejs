@@ -1,0 +1,107 @@
+<div class="admin-shell">
+  <%- include('../partials/admin-sidebar') %>
+  <div class="admin-content">
+    <div class="admin-topbar">
+      <h1 class="section-title" style="margin:0;"><%= app.firstName %> <%= app.middleName ? app.middleName + ' ' : '' %><%= app.lastName %></h1>
+      <a class="btn btn-sm btn-navy" href="/admin/applications/employment/<%= app.id %>/edit">Edit Application</a>
+    </div>
+
+    <div class="detail-grid">
+      <div class="detail-item"><div class="k">Email</div><div class="v"><%= app.email %></div></div>
+      <div class="detail-item"><div class="k">Phone</div><div class="v">H: <%= app.phoneHome || '—' %> / C: <%= app.phoneCell || '—' %></div></div>
+      <div class="detail-item"><div class="k">Address</div><div class="v"><%= app.addressStreet %>, <%= app.addressCity %>, <%= app.addressState %> <%= app.addressZip %></div></div>
+      <div class="detail-item"><div class="k">Position</div><div class="v"><%= app.vacancy ? app.vacancy.title : 'General application' %></div></div>
+      <div class="detail-item"><div class="k">Submitted</div><div class="v"><%= app.submittedAt.toLocaleString() %></div></div>
+      <div class="detail-item"><div class="k">Work Eligible</div><div class="v"><%= app.workEligible ? 'Yes' : 'No' %></div></div>
+      <div class="detail-item"><div class="k">18+</div><div class="v"><%= app.ageEighteenOrOlder ? 'Yes' : 'No' %></div></div>
+      <div class="detail-item"><div class="k">Worked for Town Before</div><div class="v"><%= app.workedForTownBefore ? 'Yes' : 'No' %><% if (app.workedForTownBefore) { %> (<%= app.priorDepartment || '—' %>, <%= app.priorEmploymentFrom || '?' %>–<%= app.priorEmploymentTo || '?' %>)<% } %></div></div>
+      <div class="detail-item"><div class="k">Capable of Duties</div><div class="v"><%= app.capableOfDuties ? 'Yes' : ('No — ' + (app.incapableDutiesDetail || '')) %></div></div>
+      <div class="detail-item"><div class="k">Currently Employed</div><div class="v"><%= app.currentlyEmployed ? 'Yes' : 'No' %></div></div>
+      <div class="detail-item"><div class="k">On Layoff/Recall</div><div class="v"><%= app.onLayoffRecall ? 'Yes' : 'No' %></div></div>
+    </div>
+
+    <% if (app.resumeFileName) { %>
+      <div class="card" style="margin-bottom:16px;">
+        <h3>Resume</h3>
+        <a class="btn btn-sm btn-navy" href="/admin/applications/employment/<%= app.id %>/resume"><%= app.resumeFileName %> — Download</a>
+      </div>
+    <% } %>
+
+    <div class="card" style="margin-bottom:16px;">
+      <h3>Employment History</h3>
+      <% (app.employmentHistory || []).forEach(function(e, i) { %>
+        <p><strong><%= e.employerName || '(unnamed employer)' %></strong> — <%= e.jobTitle || '' %><br>
+        <%= e.address || '' %><br>
+        <%= e.datesFrom || '?' %> – <%= e.datesTo || '?' %><br>
+        Supervisor: <%= e.supervisor || '—' %> · May contact: <%= e.mayContact === 'yes' ? 'Yes' : (e.mayContact === 'no' ? 'No' : '—') %><br>
+        Work performed: <%= e.workPerformed || '—' %><br>
+        Reason for leaving: <%= e.reasonLeaving || '—' %></p>
+        <hr>
+      <% }); %>
+      <% if (!(app.employmentHistory || []).length) { %><p>None listed.</p><% } %>
+      <h4>Volunteer Work History</h4><p><%= app.volunteerWorkHistory || '—' %></p>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <h3>Education</h3>
+      <table class="data-table">
+        <thead><tr><th>Level</th><th>School</th><th>Dates</th><th>Diploma</th><th>Graduated</th></tr></thead>
+        <tbody>
+          <% (app.education || []).forEach(function(e){ %>
+            <tr><td><%= e.level %></td><td><%= e.school || '—' %></td><td><%= e.dates || '—' %></td><td><%= e.diploma || '—' %></td><td><%= e.graduated ? 'Yes' : 'No' %></td></tr>
+          <% }); %>
+        </tbody>
+      </table>
+      <p style="margin-top:12px;"><strong>Specialized Training:</strong> <%= app.specializedTraining || '—' %></p>
+      <p><strong>Additional Info:</strong> <%= app.additionalInfo || '—' %></p>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <h3>Computer Skills</h3>
+      <% var skills = app.computerSkills || {}; var skillKeys = Object.keys(skills); %>
+      <% if (skillKeys.length) { %>
+        <ul>
+          <% skillKeys.forEach(function(k){ %><li><%= k %>: <%= skills[k] %></li><% }); %>
+        </ul>
+      <% } else { %><p>None indicated.</p><% } %>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <h3>Military History</h3>
+      <p>Veteran: <%= app.veteran ? 'Yes' : 'No' %></p>
+      <% if (app.veteran) { %>
+        <p>Branch: <%= app.militaryBranch || '—' %> · Rank when discharged: <%= app.militaryRankDischarged || '—' %> · Discharge status: <%= app.militaryDischargeStatus || '—' %></p>
+        <p>Present status: <%= app.presentMilitaryStatus || '—' %></p>
+        <p>Service school / special experience: <%= app.militaryServiceSchool || '—' %></p>
+      <% } %>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <h3>References &amp; Civic Activities</h3>
+      <p><%= app.civicActivities || '—' %></p>
+      <% (app.references || []).forEach(function(r, i){ %>
+        <p><%= i+1 %>. <%= r.name || '—' %> — <%= r.address || '—' %> — <%= r.phone || '—' %></p>
+      <% }); %>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <h3>Acknowledgement</h3>
+      <p>Signed: <strong><%= app.signatureTypedName %></strong> on <%= app.signatureDate.toDateString() %> — Acknowledged: <%= app.acknowledged ? 'Yes' : 'No' %></p>
+    </div>
+
+    <form method="POST" action="/admin/applications/employment/<%= app.id %>/status">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="field-row" style="align-items:flex-end;">
+        <div class="field">
+          <label>Status</label>
+          <select name="status">
+            <% ['NEW','UNDER_REVIEW','INTERVIEWING','CLOSED'].forEach(function(s){ %>
+              <option value="<%= s %>" <%= app.status===s?'selected':'' %>><%= s.replace('_',' ') %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="field"><button class="btn btn-primary" type="submit">Update Status</button></div>
+      </div>
+    </form>
+  </div>
+</div>
