@@ -26,6 +26,14 @@ router.get("/css-test", (req, res) => {
 </html>`);
 });
 
+// Same trivial test, but rendered through the real EJS layout + express-ejs-layouts
+// pipeline that every actual page on the site uses (the /css-test route above
+// deliberately bypasses that with a raw res.send). If this version breaks where
+// the raw one didn't, the layout/hoisting pipeline is the culprit, not the CSS.
+router.get("/css-test2", (req, res) => {
+  res.render("css-test", { title: "CSS Test (via layout)" });
+});
+
 router.get("/", async (req, res, next) => {
   try {
     const [openVacancyCount, boardCount, recentVacancies] = await Promise.all([

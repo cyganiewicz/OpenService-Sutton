@@ -1,0 +1,6 @@
+<link rel="stylesheet" href="/css/test.css?v=<%= buildId %>">
+<h1>CSS diagnostic page (rendered via the real layout)</h1>
+<p>Same 3-line stylesheet as /css-test, but this page goes through layout.ejs + express-ejs-layouts, exactly like every real page on the site.</p>
+<div class="test-box">This box should have a dark green background if the stylesheet applied.</div>
+<p id="result" class="result-box">Loading result…</p>
+<script src="/js/css-test.js?v=<%= buildId %>" defer></script>
