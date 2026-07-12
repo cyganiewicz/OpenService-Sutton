@@ -48,6 +48,24 @@ enum PayType {
   OTHER
 }
 
+// Mirrors the table connect-pg-simple manages for Express sessions (see the
+// `pgSession` setup in src/app.js — tableName: "user_sessions"). Prisma
+// itself never reads or writes rows here; this model exists ONLY so that
+// `prisma db push` recognizes the table as intentional and doesn't propose
+// dropping it as "drift" every deploy (which is exactly what caused a
+// crash-on-deploy: db push saw an unrecognized table with a live admin
+// session in it and refused to proceed without --accept-data-loss). Column
+// types are matched exactly to connect-pg-simple's own schema so this is a
+// no-op diff, not an actual migration.
+model Session {
+  sid    String   @id @db.VarChar
+  sess   Json     @db.Json
+  expire DateTime @db.Timestamp(6)
+
+  @@index([expire])
+  @@map("user_sessions")
+}
+
 model AdminUser {
   id                 String    @id @default(cuid())
   email              String    @unique
