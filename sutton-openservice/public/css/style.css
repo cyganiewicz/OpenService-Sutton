@@ -3,7 +3,7 @@
    Palette now matches OpenBook's real look (deep forest green header/hero,
    warm cream page background, muted tan-gold accent, bold sans headlines)
    based on screenshots the Town shared — not a guess anymore. Variable names
-   below still say --navy-*/--maroon-* for historical reasons (that's what
+   below still say --navy- and --maroon- for historical reasons (that's what
    they were called before the correction) but the actual colors are green/
    terracotta now; renaming them would mean touching every template, and the
    values are what matter. Card/table/form chrome keeps its own restrained
