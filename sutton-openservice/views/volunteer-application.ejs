@@ -12,58 +12,9 @@
           <input type="text" id="company_website" name="company_website" tabindex="-1" autocomplete="off">
         </div>
 
-        <div class="field-row">
-          <div class="field <%= errors.firstName ? 'has-error' : '' %>">
-            <label for="firstName">First name *</label>
-            <input type="text" id="firstName" name="firstName" required value="<%= values.firstName || '' %>">
-            <% if (errors.firstName) { %><div class="field-error"><%= errors.firstName.msg %></div><% } %>
-          </div>
-          <div class="field <%= errors.lastName ? 'has-error' : '' %>">
-            <label for="lastName">Last name *</label>
-            <input type="text" id="lastName" name="lastName" required value="<%= values.lastName || '' %>">
-            <% if (errors.lastName) { %><div class="field-error"><%= errors.lastName.msg %></div><% } %>
-          </div>
-        </div>
-
-        <div class="field-row">
-          <div class="field <%= errors.email ? 'has-error' : '' %>">
-            <label for="email">Email *</label>
-            <input type="email" id="email" name="email" required value="<%= values.email || '' %>">
-            <% if (errors.email) { %><div class="field-error"><%= errors.email.msg %></div><% } %>
-          </div>
-          <div class="field <%= errors.phone ? 'has-error' : '' %>">
-            <label for="phone">Phone *</label>
-            <input type="tel" id="phone" name="phone" required value="<%= values.phone || '' %>">
-            <% if (errors.phone) { %><div class="field-error"><%= errors.phone.msg %></div><% } %>
-          </div>
-        </div>
-
-        <div class="field <%= errors.addressStreet ? 'has-error' : '' %>">
-          <label for="addressStreet">Street address *</label>
-          <input type="text" id="addressStreet" name="addressStreet" required value="<%= values.addressStreet || '' %>">
-          <% if (errors.addressStreet) { %><div class="field-error"><%= errors.addressStreet.msg %></div><% } %>
-        </div>
-        <div class="field-row">
-          <div class="field <%= errors.addressCity ? 'has-error' : '' %>">
-            <label for="addressCity">Town/City *</label>
-            <input type="text" id="addressCity" name="addressCity" required value="<%= values.addressCity || '' %>">
-          </div>
-          <div class="field">
-            <label for="addressState">State</label>
-            <input type="text" id="addressState" name="addressState" maxlength="2" value="<%= values.addressState || 'MA' %>">
-          </div>
-          <div class="field <%= errors.addressZip ? 'has-error' : '' %>">
-            <label for="addressZip">ZIP *</label>
-            <input type="text" id="addressZip" name="addressZip" required value="<%= values.addressZip || '' %>">
-          </div>
-        </div>
-
-        <div class="form-section-title">Interest</div>
-        <div class="field <%= errors.boardsInterestedIn ? 'has-error' : '' %>">
-          <label for="boardsInterestedIn">Which board(s) or commission(s) are you interested in? *</label>
-          <input type="text" id="boardsInterestedIn" name="boardsInterestedIn" required placeholder="e.g., Planning Board, Conservation Commission" value="<%= values.boardsInterestedIn || '' %>">
-          <% if (errors.boardsInterestedIn) { %><div class="field-error"><%= errors.boardsInterestedIn.msg %></div><% } %>
-        </div>
+        <% fields.forEach(function (field) { %>
+          <%- include('partials/dynamic-field', { field: field, value: values[field.name], error: errors[field.name] }) %>
+        <% }); %>
 
         <% if (vacancies.length) { %>
         <div class="field">
@@ -71,28 +22,11 @@
           <select id="vacancyId" name="vacancyId">
             <option value="">— Not applying to a specific posted vacancy —</option>
             <% vacancies.forEach(function(v) { %>
-              <option value="<%= v.id %>" <%= values.vacancyId === v.id ? 'selected' : '' %>><%= v.title %> (<%= v.departmentOrBoard %>)</option>
+              <option value="<%= v.id %>" <%= vacancyId === v.id ? 'selected' : '' %>><%= v.title %> (<%= v.departmentOrBoard %>)</option>
             <% }); %>
           </select>
         </div>
         <% } %>
-
-        <div class="field">
-          <label for="availability">Availability</label>
-          <textarea id="availability" name="availability" placeholder="Days/times you're generally available for meetings"><%= values.availability || '' %></textarea>
-        </div>
-        <div class="field">
-          <label for="relevantExperience">Relevant experience</label>
-          <textarea id="relevantExperience" name="relevantExperience"><%= values.relevantExperience || '' %></textarea>
-        </div>
-        <div class="field">
-          <label for="whyInterested">Why are you interested in this role?</label>
-          <textarea id="whyInterested" name="whyInterested"><%= values.whyInterested || '' %></textarea>
-        </div>
-        <div class="field">
-          <label for="referralSource">How did you hear about this opportunity?</label>
-          <input type="text" id="referralSource" name="referralSource" value="<%= values.referralSource || '' %>">
-        </div>
 
         <p class="hint">By submitting, you consent to the Town of Sutton collecting and reviewing this information for the purpose of evaluating your volunteer application.</p>
         <button class="btn btn-primary" type="submit">Submit Volunteer Application</button>

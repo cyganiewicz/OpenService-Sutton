@@ -5,11 +5,14 @@ companion to **OpenBook** (finance.suttonma.gov/openbook). It provides:
 
 - A **Volunteer Application** form for Town boards/commissions
 - An **Employment Application** form (digitized from the Town's existing paper/PDF
-  "Employment Application FT-PT-Clerical" form — all sections and fields preserved)
-- A public **Vacancies** page listing open board/commission seats and Town department jobs
+  "Employment Application FT-PT-Clerical" form — all sections and fields preserved), with the
+  question set on both forms fully editable by admins via a drag-and-drop form builder
+- A public **Vacancies** page listing open board/commission seats and Town department jobs,
+  each with its own detail page for the full description and qualifications
 - A public **Boards & Commissions** page showing current members and term expiration dates
-- A password-protected **Admin panel** for Town staff to manage vacancies, board seats, and
-  review submitted applications (including downloading uploaded resumes)
+- A password-protected **Admin panel** for Town staff to manage vacancies, board seats, the
+  application forms themselves, and review submitted applications (including downloading
+  uploaded resumes)
 
 Built with Node.js/Express, EJS templates, PostgreSQL via Prisma — designed to deploy on
 **Railway** (Postgres + hosting) with the repo on **GitHub**, matching what you described.
@@ -191,16 +194,29 @@ Log in at `/admin/login`. From there:
   underline, bulleted/numbered lists, links) — formatting is sanitized server-side before
   saving, so pasted or malicious HTML can't inject scripts. Town department jobs can also
   specify a pay type (hourly/salaried/stipend/unpaid/other) and a min/max range, which shows
-  on the public vacancy listing.
+  on the public vacancy listing. Each posting also has its own public detail page
+  (`/vacancies/:id`) with the full description/qualifications — the listing page only shows a
+  summary card that links into it.
 - **Boards & Members** — add boards/commissions, add/edit/delete individual seats (title,
   current member, appointed date, term-expiration date, vacant flag). This directly powers
   the public `/board-members` page.
-- **Volunteer / Employment Applications** — view every submission, update its review status
+- **Application Forms** (`/admin/forms`) — a drag-and-drop builder for the *questions* on the
+  public Volunteer and Employment application forms, separate from reviewing submissions (see
+  below). Add, relabel, retype, mark required, or delete a question, and reorder the whole list
+  by dragging field cards — changes take effect on the live public forms immediately. Field
+  types include text, paragraph, email, phone, date, number, dropdown, multiple choice,
+  checkboxes, a single checkbox, plus section headers and instructional text for organizing a
+  long form. Employment's repeating sections (work history, education, computer skills,
+  references), the resume upload, and the signature/acknowledgement block are fixed parts of
+  the form and aren't editable here, since they don't fit a single-value question model.
+- **Volunteer / Employment Applications** — view every *submission*, update its review status
   (New / Under Review / Interviewing / Closed), **edit the submitted data** if a correction is
   needed (a typo'd phone number, updated address, etc.), and for employment applications,
   download the applicant's resume if one was attached. Editing preserves the applicant's
   original signature and acknowledgement date — it doesn't let staff alter what the applicant
-  legally certified, only the contact/history details around it.
+  legally certified, only the contact/history details around it. This is distinct from
+  **Application Forms** above: this section edits what an applicant already sent in, not the
+  questions asked of future applicants.
 - **Staff Accounts** (ADMINISTRATOR role only) — add new staff or administrator logins. Creating
   an account generates a one-time temporary password, shown once on screen — share it with the
   new person out of band (not by plain email, ideally). Every new account, and every password
@@ -215,21 +231,32 @@ Log in at `/admin/login`. From there:
 ## 7. Project structure
 
 ```
-prisma/schema.prisma        Database schema (vacancies, boards, seats, applications, admin users)
-prisma/seed.js               One-time bootstrap: first admin account + sample data
-src/app.js                   Express app assembly (middleware order matters — see comments)
-src/server.js                Entry point; fails fast if prod secrets are missing
-src/db.js                    Shared Prisma client
-src/middleware/              security.js, auth.js, csrf.js, upload.js, validate.js
-src/utils/richText.js        sanitize-html wrapper for the vacancy rich-text fields
-src/routes/public.js         Home, vacancies, board-members (read-only public pages)
-src/routes/applications.js   Volunteer + employment form GET/POST; exports shared field
-                              lists/validators/builders reused by admin.js's edit screens
-src/routes/admin.js          Login, password change, staff management, and all admin CRUD
-                              (vacancies, boards/seats, application review + editing)
-views/                       EJS templates (layout.ejs wraps every page)
-public/css/style.css         Design system — CSS variables at the top for easy re-theming
-public/js/rich-editor.js     Self-hosted rich-text toolbar (no CDN — keeps CSP strict)
+prisma/schema.prisma          Database schema (vacancies, boards, seats, applications, admin
+                                users, and FormField — the admin-configurable question rows)
+prisma/seed.js                 One-time bootstrap: first admin account + sample data + default
+                                form fields (only seeds a form's fields if it has none yet)
+prisma/defaultFormFields.js    The starting question set for each form, read only at seed time
+src/app.js                     Express app assembly (middleware order matters — see comments)
+src/server.js                  Entry point; fails fast if prod secrets are missing
+src/db.js                      Shared Prisma client
+src/middleware/                security.js, auth.js, csrf.js, upload.js, validate.js
+src/utils/richText.js          sanitize-html wrapper for the vacancy rich-text fields
+src/utils/dynamicForm.js       Loads FormField rows and reads/validates a submission's
+                                responses against them — shared by the public forms and the
+                                admin submission-edit screens so they never drift out of sync
+src/routes/public.js           Home, vacancies, vacancy detail, board-members (public pages)
+src/routes/applications.js     Volunteer + employment form GET/POST, rendered dynamically from
+                                FormField rows; exports shared field lists/builders reused by
+                                admin.js's submission-edit screens
+src/routes/admin.js            Login, password change, staff management, the form builder
+                                (/admin/forms), and all admin CRUD (vacancies, boards/seats,
+                                submission review + editing)
+views/                         EJS templates (layout.ejs wraps every page)
+views/partials/dynamic-field.ejs  Renders one FormField as an <input>/<select>/etc., shared by
+                                every place a dynamic question needs to appear
+public/css/style.css           Design system — CSS variables at the top for easy re-theming
+public/js/rich-editor.js       Self-hosted rich-text toolbar (no CDN — keeps CSP strict)
+public/js/form-builder.js      Self-hosted drag-and-drop reordering for /admin/forms (no CDN)
 ```
 
 ---

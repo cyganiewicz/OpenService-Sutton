@@ -48,6 +48,55 @@ enum PayType {
   OTHER
 }
 
+enum FormType {
+  VOLUNTEER
+  EMPLOYMENT
+}
+
+enum FieldType {
+  TEXT
+  TEXTAREA
+  EMAIL
+  TEL
+  DATE
+  NUMBER
+  SELECT
+  RADIO
+  CHECKBOX_GROUP
+  CHECKBOX_SINGLE
+  SECTION_HEADER
+  PARAGRAPH
+}
+
+// One row per admin-configurable question on the Volunteer or Employment
+// application form. `name` is the stable machine key used both as the form
+// input's `name` attribute and as the key under which the answer is stored
+// in VolunteerApplication.responses / EmploymentApplication.responses — so
+// renaming `label` is always safe, but changing `name` after a field has
+// live submissions orphans those old answers under the old key.
+// Employment's repeating sections (work history, education, computer
+// skills, references), resume upload, and signature/acknowledgement are
+// NOT represented here — they don't fit a single-value field model (rows
+// repeat, a file has bytes to store, the signature date is server-set) and
+// stay as fixed columns on EmploymentApplication so the form still matches
+// the Town's official paper form for those parts.
+model FormField {
+  id        String    @id @default(cuid())
+  formType  FormType
+  name      String
+  label     String
+  fieldType FieldType
+  required  Boolean   @default(false)
+  helpText  String?
+  // Choice list for SELECT / RADIO / CHECKBOX_GROUP, e.g. ["Yes","No"].
+  options   Json?
+  order     Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([formType, name])
+}
+
 // Mirrors the table connect-pg-simple manages for Express sessions (see the
 // `pgSession` setup in src/app.js — tableName: "user_sessions"). Prisma
 // itself never reads or writes rows here; this model exists ONLY so that
@@ -128,81 +177,41 @@ model JobVacancy {
   employmentApplications EmploymentApplication[]
 }
 
+// Every user-facing question on the Volunteer form is a simple single-value
+// answer, so the whole thing is driven by FormField (formType: VOLUNTEER)
+// and stored here as one JSON object keyed by FormField.name.
 model VolunteerApplication {
-  id                  String            @id @default(cuid())
-  vacancy             JobVacancy?       @relation(fields: [vacancyId], references: [id])
-  vacancyId           String?
-  boardsInterestedIn   String
-  firstName           String
-  lastName             String
-  email                String
-  phone                String
-  addressStreet       String
-  addressCity          String
-  addressState         String @default("MA")
-  addressZip           String
-  availability         String?
-  relevantExperience   String?
-  whyInterested        String?
-  referralSource       String?
-  status               ApplicationStatus @default(NEW)
-  submittedAt          DateTime          @default(now())
-  submittedIp          String?
+  id          String            @id @default(cuid())
+  vacancy     JobVacancy?       @relation(fields: [vacancyId], references: [id])
+  vacancyId   String?
+  responses   Json
+  status      ApplicationStatus @default(NEW)
+  submittedAt DateTime          @default(now())
+  submittedIp String?
 }
 
 model EmploymentApplication {
-  id     String      @id @default(cuid())
+  id        String      @id @default(cuid())
   vacancy   JobVacancy? @relation(fields: [vacancyId], references: [id])
   vacancyId String?
 
   dateOfApplication DateTime @default(now())
-  referralSource    String?
 
-  lastName   String
-  firstName  String
-  middleName String?
+  // Admin-configurable single-value questions (formType: EMPLOYMENT),
+  // e.g. name, address, email/phone, eligibility yes/no questions, referral
+  // source, military history, civic activities — one JSON object keyed by
+  // FormField.name.
+  responses Json
 
-  addressStreet String
-  addressCity   String
-  addressState  String @default("MA")
-  addressZip    String
-
-  email      String
-  phoneHome  String?
-  phoneCell  String?
-
-  workEligible        Boolean
-  ageEighteenOrOlder  Boolean
-  workedForTownBefore Boolean
-  priorEmploymentFrom String?
-  priorEmploymentTo   String?
-  priorDepartment     String?
-
-  capableOfDuties       Boolean
-  incapableDutiesDetail String?
-
-  currentlyEmployed Boolean
-  onLayoffRecall    Boolean
-
-  // Repeating sections stored as structured JSON (mirrors the paper form's
-  // repeatable rows): employment history entries, education rows,
-  // computer-skill ratings, and references.
-  employmentHistory Json
+  // Fixed sections that mirror the Town's official paper form structure and
+  // don't fit a single-value field model — kept out of the drag-and-drop
+  // builder on purpose (see the FormField model comment).
+  employmentHistory   Json
   volunteerWorkHistory String?
-  education         Json
-  specializedTraining String?
-  additionalInfo      String?
-  computerSkills      Json
-
-  veteran                Boolean @default(false)
-  militaryBranch         String?
-  militaryRankDischarged String?
-  militaryDischargeStatus String?
-  presentMilitaryStatus  String?
-  militaryServiceSchool  String?
-
-  civicActivities String?
-  references      Json
+  education           Json
+  specializedTraining  String?
+  computerSkills       Json
+  references           Json
 
   signatureTypedName String
   signatureDate      DateTime

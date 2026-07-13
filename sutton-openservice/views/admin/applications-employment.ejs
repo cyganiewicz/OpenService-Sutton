@@ -7,7 +7,7 @@
       <tbody>
         <% apps.forEach(function(a) { %>
           <tr>
-            <td><%= a.firstName %> <%= a.lastName %><br><span class="hint"><%= a.email %></span></td>
+            <td><%= a.responses.firstName || '' %> <%= a.responses.lastName || '' %><br><span class="hint"><%= a.responses.email || '' %></span></td>
             <td><%= a.vacancy ? a.vacancy.title : 'General application' %></td>
             <td><%= a.submittedAt.toLocaleString() %></td>
             <td><span class="badge badge-status"><%= a.status.replace('_',' ') %></span></td>

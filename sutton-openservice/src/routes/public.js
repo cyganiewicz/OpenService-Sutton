@@ -36,6 +36,21 @@ router.get("/vacancies", async (req, res, next) => {
   }
 });
 
+router.get("/vacancies/:id", async (req, res, next) => {
+  try {
+    const vacancy = await prisma.jobVacancy.findUnique({
+      where: { id: req.params.id },
+      include: { boardCommission: true },
+    });
+    if (!vacancy) {
+      return res.status(404).render("errors/404", { title: "Vacancy Not Found" });
+    }
+    res.render("vacancy-detail", { title: vacancy.title, vacancy });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get("/board-members", async (req, res, next) => {
   try {
     const boards = await prisma.boardCommission.findMany({

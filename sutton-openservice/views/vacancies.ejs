@@ -37,17 +37,11 @@
             <%= v.category === 'BOARD_COMMISSION' ? 'Board / Commission' : 'Town Department' %>
           </span>
           <span class="badge badge-status"><%= v.employmentType.replace('_',' ') %></span>
-          <h3 class="u-mt-10"><%= v.title %></h3>
+          <h3 class="u-mt-10"><a href="/vacancies/<%= v.id %>"><%= v.title %></a></h3>
           <p class="text-brand-strong"><%= v.departmentOrBoard %></p>
           <% if (payLine) { %><p class="text-success-strong"><%= payLine %></p><% } %>
-          <div class="rich-content"><%- v.description %></div>
-          <% if (v.qualifications) { %><p><strong>Qualifications:</strong></p><div class="rich-content"><%- v.qualifications %></div><% } %>
           <p class="hint">Posted <%= v.postedDate.toDateString() %><% if (v.closingDate) { %> · Closes <%= v.closingDate.toDateString() %><% } %></p>
-          <% if (v.category === 'BOARD_COMMISSION') { %>
-            <a class="btn btn-navy btn-sm" href="/volunteer-application?vacancy=<%= v.id %>">Apply to Volunteer</a>
-          <% } else { %>
-            <a class="btn btn-navy btn-sm" href="/employment-application?vacancy=<%= v.id %>">Apply for this Job</a>
-          <% } %>
+          <a class="btn btn-navy btn-sm" href="/vacancies/<%= v.id %>">View Full Details</a>
         </div>
       <% }); %>
     </div>

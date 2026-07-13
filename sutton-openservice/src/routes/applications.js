@@ -1,8 +1,8 @@
 const express = require("express");
-const { body, validationResult } = require("express-validator");
 const prisma = require("../db");
 const { upload, MAX_UPLOAD_MB } = require("../middleware/upload");
 const { submissionLimiter } = require("../middleware/security");
+const { loadFormFields, readDynamicResponses } = require("../utils/dynamicForm");
 const router = express.Router();
 
 const COMPUTER_SKILLS = [
@@ -30,97 +30,80 @@ async function loadOpenVacancies(category) {
 }
 
 /* ---------------------------- Volunteer form ---------------------------- */
+// Every question on this form is admin-configurable (src/routes/admin.js
+// "/admin/forms" builder) — the fields rendered here always come straight
+// from the FormField table (formType: VOLUNTEER), not from a hardcoded list.
 
 router.get("/volunteer-application", async (req, res, next) => {
   try {
-    const vacancies = await loadOpenVacancies("BOARD_COMMISSION");
-    res.render("volunteer-application", { title: "Volunteer Application", vacancies, errors: {}, values: { vacancyId: req.query.vacancy || "" } });
+    const [vacancies, fields] = await Promise.all([loadOpenVacancies("BOARD_COMMISSION"), loadFormFields("VOLUNTEER")]);
+    res.render("volunteer-application", {
+      title: "Volunteer Application",
+      vacancies,
+      fields,
+      errors: {},
+      values: {},
+      vacancyId: req.query.vacancy || "",
+    });
   } catch (err) {
     next(err);
   }
 });
 
-const volunteerValidators = [
-  body("firstName").trim().notEmpty().withMessage("First name is required.").isLength({ max: 100 }).escape(),
-  body("lastName").trim().notEmpty().withMessage("Last name is required.").isLength({ max: 100 }).escape(),
-  body("email").trim().isEmail().withMessage("A valid email is required.").normalizeEmail(),
-  body("phone").trim().notEmpty().withMessage("Phone number is required.").isLength({ max: 30 }).escape(),
-  body("addressStreet").trim().notEmpty().withMessage("Street address is required.").isLength({ max: 200 }).escape(),
-  body("addressCity").trim().notEmpty().withMessage("City/Town is required.").isLength({ max: 100 }).escape(),
-  body("addressState").trim().notEmpty().isLength({ max: 2 }).escape(),
-  body("addressZip").trim().notEmpty().withMessage("ZIP code is required.").isLength({ max: 10 }).escape(),
-  body("boardsInterestedIn").trim().notEmpty().withMessage("Please tell us which board(s) or commission(s) interest you.").isLength({ max: 500 }).escape(),
-  body("availability").optional({ checkFalsy: true }).isLength({ max: 500 }).escape(),
-  body("relevantExperience").optional({ checkFalsy: true }).isLength({ max: 3000 }).escape(),
-  body("whyInterested").optional({ checkFalsy: true }).isLength({ max: 3000 }).escape(),
-  body("referralSource").optional({ checkFalsy: true }).isLength({ max: 200 }).escape(),
-  body("vacancyId").optional({ checkFalsy: true }).isString(),
-];
+router.post("/volunteer-application", submissionLimiter, async (req, res, next) => {
+  try {
+    const fields = await loadFormFields("VOLUNTEER");
+    const { errors, responses } = readDynamicResponses(fields, req.body);
 
-// Re-renders the form with field errors + prior input on validation failure.
-// Defined inline (rather than as generic middleware) because the form needs
-// a fresh, request-time fetch of open vacancies for its dropdown — that data
-// can't be captured statically when the route is registered at startup.
-async function volunteerValidationGate(req, res, next) {
-  const errors = validationResult(req);
-  if (errors.isEmpty()) return next();
-  const vacancies = await loadOpenVacancies("BOARD_COMMISSION");
-  return res.status(422).render("volunteer-application", {
-    title: "Volunteer Application",
-    vacancies,
-    errors: errors.mapped(),
-    values: req.body,
-  });
-}
-
-router.post(
-  "/volunteer-application",
-  submissionLimiter,
-  volunteerValidators,
-  volunteerValidationGate,
-  async (req, res, next) => {
-    try {
-      if (honeypotTripped(req)) {
-        // Silently pretend success to bots; don't tip them off.
-        return res.render("application-success", { title: "Application Received", kind: "volunteer" });
-      }
-      const b = req.body;
-      await prisma.volunteerApplication.create({
-        data: {
-          vacancyId: b.vacancyId || null,
-          boardsInterestedIn: b.boardsInterestedIn,
-          firstName: b.firstName,
-          lastName: b.lastName,
-          email: b.email,
-          phone: b.phone,
-          addressStreet: b.addressStreet,
-          addressCity: b.addressCity,
-          addressState: b.addressState || "MA",
-          addressZip: b.addressZip,
-          availability: b.availability || null,
-          relevantExperience: b.relevantExperience || null,
-          whyInterested: b.whyInterested || null,
-          referralSource: b.referralSource || null,
-          submittedIp: req.ip,
-        },
+    if (Object.keys(errors).length) {
+      const vacancies = await loadOpenVacancies("BOARD_COMMISSION");
+      return res.status(422).render("volunteer-application", {
+        title: "Volunteer Application",
+        vacancies,
+        fields,
+        errors,
+        values: responses,
+        vacancyId: req.body.vacancyId || "",
       });
-      res.render("application-success", { title: "Application Received", kind: "volunteer" });
-    } catch (err) {
-      next(err);
     }
+
+    if (honeypotTripped(req)) {
+      // Silently pretend success to bots; don't tip them off.
+      return res.render("application-success", { title: "Application Received", kind: "volunteer" });
+    }
+
+    await prisma.volunteerApplication.create({
+      data: {
+        vacancyId: req.body.vacancyId || null,
+        responses,
+        submittedIp: req.ip,
+      },
+    });
+    res.render("application-success", { title: "Application Received", kind: "volunteer" });
+  } catch (err) {
+    next(err);
   }
-);
+});
 
 /* --------------------------- Employment form ----------------------------- */
+// The front-matter questions (name, address, eligibility questions, referral
+// source, military history, etc.) are admin-configurable the same way as the
+// volunteer form. Employment history, education, computer skills, references,
+// the resume upload, and the signature/acknowledgement block are fixed —
+// they mirror the Town's official paper form and don't fit a single-value
+// field model (repeating rows, file bytes, a server-set signature date). See
+// the FormField model comment in schema.prisma.
 
 router.get("/employment-application", async (req, res, next) => {
   try {
-    const vacancies = await loadOpenVacancies("TOWN_DEPARTMENT");
+    const [vacancies, fields] = await Promise.all([loadOpenVacancies("TOWN_DEPARTMENT"), loadFormFields("EMPLOYMENT")]);
     res.render("employment-application", {
       title: "Employment Application",
       vacancies,
+      fields,
       errors: {},
-      values: { vacancyId: req.query.vacancy || "" },
+      values: {},
+      vacancyId: req.query.vacancy || "",
       COMPUTER_SKILLS,
       EDUCATION_LEVELS,
       maxUploadMb: MAX_UPLOAD_MB,
@@ -129,27 +112,6 @@ router.get("/employment-application", async (req, res, next) => {
     next(err);
   }
 });
-
-const employmentValidators = [
-  body("lastName").trim().notEmpty().withMessage("Last name is required.").isLength({ max: 100 }).escape(),
-  body("firstName").trim().notEmpty().withMessage("First name is required.").isLength({ max: 100 }).escape(),
-  body("middleName").optional({ checkFalsy: true }).isLength({ max: 100 }).escape(),
-  body("addressStreet").trim().notEmpty().withMessage("Street address is required.").isLength({ max: 200 }).escape(),
-  body("addressCity").trim().notEmpty().withMessage("City/Town is required.").isLength({ max: 100 }).escape(),
-  body("addressState").trim().notEmpty().isLength({ max: 2 }).escape(),
-  body("addressZip").trim().notEmpty().withMessage("ZIP code is required.").isLength({ max: 10 }).escape(),
-  body("email").trim().isEmail().withMessage("A valid email is required.").normalizeEmail(),
-  body("workEligible").notEmpty().withMessage("Please answer the work-eligibility question."),
-  body("ageEighteenOrOlder").notEmpty().withMessage("Please answer the age question."),
-  body("workedForTownBefore").notEmpty().withMessage("Please answer whether you've worked for the Town before."),
-  body("capableOfDuties").notEmpty().withMessage("Please answer the duties question."),
-  body("currentlyEmployed").notEmpty(),
-  body("onLayoffRecall").notEmpty(),
-  body("signatureTypedName").trim().notEmpty().withMessage("Please type your full name as your signature."),
-  body("acknowledged")
-    .equals("on")
-    .withMessage("You must acknowledge and certify the statements above before submitting."),
-];
 
 function toBool(v) {
   return v === "yes" || v === "on" || v === "true";
@@ -171,10 +133,12 @@ function collectRows(body, prefix, keys, count) {
   return rows;
 }
 
-// Builds the Prisma `data` object for an EmploymentApplication from raw form
-// fields. Shared between the public submit handler and the admin edit
-// screen (src/routes/admin.js) so the two never drift out of sync.
-function employmentDataFromBody(b) {
+// Builds the Prisma `data` object for EmploymentApplication's FIXED sections
+// only (everything that isn't a FormField-driven response) — employment
+// history, education, computer skills, references, and the signature block.
+// Shared between the public submit handler and the admin edit screen
+// (src/routes/admin.js) so the two never drift out of sync.
+function employmentFixedDataFromBody(b) {
   const employmentHistory = collectRows(
     b,
     "emp",
@@ -199,41 +163,11 @@ function employmentDataFromBody(b) {
   const references = collectRows(b, "ref", ["name", "address", "phone"], 3);
 
   return {
-    vacancyId: b.vacancyId || null,
-    referralSource: b.referralSource || null,
-    lastName: b.lastName,
-    firstName: b.firstName,
-    middleName: b.middleName || null,
-    addressStreet: b.addressStreet,
-    addressCity: b.addressCity,
-    addressState: b.addressState || "MA",
-    addressZip: b.addressZip,
-    email: b.email,
-    phoneHome: b.phoneHome || null,
-    phoneCell: b.phoneCell || null,
-    workEligible: toBool(b.workEligible),
-    ageEighteenOrOlder: toBool(b.ageEighteenOrOlder),
-    workedForTownBefore: toBool(b.workedForTownBefore),
-    priorEmploymentFrom: b.priorEmploymentFrom || null,
-    priorEmploymentTo: b.priorEmploymentTo || null,
-    priorDepartment: b.priorDepartment || null,
-    capableOfDuties: toBool(b.capableOfDuties),
-    incapableDutiesDetail: b.incapableDutiesDetail || null,
-    currentlyEmployed: toBool(b.currentlyEmployed),
-    onLayoffRecall: toBool(b.onLayoffRecall),
     employmentHistory,
     volunteerWorkHistory: b.volunteerWorkHistory || null,
     education,
     specializedTraining: b.specializedTraining || null,
-    additionalInfo: b.additionalInfo || null,
     computerSkills,
-    veteran: toBool(b.veteran),
-    militaryBranch: b.militaryBranch || null,
-    militaryRankDischarged: b.militaryRankDischarged || null,
-    militaryDischargeStatus: b.militaryDischargeStatus || null,
-    presentMilitaryStatus: b.presentMilitaryStatus || null,
-    militaryServiceSchool: b.militaryServiceSchool || null,
-    civicActivities: b.civicActivities || null,
     references,
     signatureTypedName: b.signatureTypedName,
     signatureDate: new Date(),
@@ -241,70 +175,80 @@ function employmentDataFromBody(b) {
   };
 }
 
-async function employmentValidationGate(req, res, next) {
-  const errors = validationResult(req);
-  if (errors.isEmpty()) return next();
-  const vacancies = await loadOpenVacancies("TOWN_DEPARTMENT");
-  return res.status(422).render("employment-application", {
-    title: "Employment Application",
-    vacancies,
-    errors: errors.mapped(),
-    values: req.body,
-    COMPUTER_SKILLS,
-    EDUCATION_LEVELS,
-    maxUploadMb: MAX_UPLOAD_MB,
-  });
+function validateEmploymentFixedFields(b) {
+  const errors = {};
+  if (!b.signatureTypedName || !String(b.signatureTypedName).trim()) {
+    errors.signatureTypedName = { msg: "Please type your full name as your signature." };
+  }
+  if (b.acknowledged !== "on") {
+    errors.acknowledged = { msg: "You must acknowledge and certify the statements above before submitting." };
+  }
+  return errors;
 }
 
-router.post(
-  "/employment-application",
-  submissionLimiter,
-  upload.single("resume"),
-  employmentValidators,
-  employmentValidationGate,
-  async (req, res, next) => {
-    try {
-      if (honeypotTripped(req)) {
-        return res.render("application-success", { title: "Application Received", kind: "employment" });
-      }
-      const data = employmentDataFromBody(req.body);
-      data.submittedIp = req.ip;
+router.post("/employment-application", submissionLimiter, upload.single("resume"), async (req, res, next) => {
+  const rerenderWithErrors = async (errors) => {
+    const vacancies = await loadOpenVacancies("TOWN_DEPARTMENT");
+    const fields = await loadFormFields("EMPLOYMENT");
+    return res.status(422).render("employment-application", {
+      title: "Employment Application",
+      vacancies,
+      fields,
+      errors,
+      values: req.body,
+      vacancyId: req.body.vacancyId || "",
+      COMPUTER_SKILLS,
+      EDUCATION_LEVELS,
+      maxUploadMb: MAX_UPLOAD_MB,
+    });
+  };
 
-      if (req.file) {
-        data.resumeFileName = req.file.originalname.slice(0, 200);
-        data.resumeFileType = req.file.mimetype;
-        data.resumeFileData = req.file.buffer;
-      }
+  try {
+    const fields = await loadFormFields("EMPLOYMENT");
+    const { errors: dynamicErrors, responses } = readDynamicResponses(fields, req.body);
+    const fixedErrors = validateEmploymentFixedFields(req.body);
+    const errors = { ...dynamicErrors, ...fixedErrors };
 
-      await prisma.employmentApplication.create({ data });
-      res.render("application-success", { title: "Application Received", kind: "employment" });
-    } catch (err) {
-      if (err.message && err.message.includes("resumes are accepted")) {
-        return res.status(422).render("employment-application", {
-          title: "Employment Application",
-          vacancies: await loadOpenVacancies("TOWN_DEPARTMENT"),
-          errors: { resume: { msg: err.message } },
-          values: req.body,
-          COMPUTER_SKILLS,
-          EDUCATION_LEVELS,
-          maxUploadMb: MAX_UPLOAD_MB,
-        });
-      }
-      next(err);
+    if (Object.keys(errors).length) {
+      return rerenderWithErrors(errors);
     }
-  }
-);
 
-// Shared with src/routes/admin.js (application-editing screens) so the field
-// list, JSON-row parsing, and validation rules live in exactly one place.
+    if (honeypotTripped(req)) {
+      return res.render("application-success", { title: "Application Received", kind: "employment" });
+    }
+
+    const data = {
+      vacancyId: req.body.vacancyId || null,
+      responses,
+      ...employmentFixedDataFromBody(req.body),
+      submittedIp: req.ip,
+    };
+
+    if (req.file) {
+      data.resumeFileName = req.file.originalname.slice(0, 200);
+      data.resumeFileType = req.file.mimetype;
+      data.resumeFileData = req.file.buffer;
+    }
+
+    await prisma.employmentApplication.create({ data });
+    res.render("application-success", { title: "Application Received", kind: "employment" });
+  } catch (err) {
+    if (err.message && err.message.includes("resumes are accepted")) {
+      return rerenderWithErrors({ resume: { msg: err.message } });
+    }
+    next(err);
+  }
+});
+
+// Shared with src/routes/admin.js (submission-editing screens) so the field
+// list, JSON-row parsing, and fixed-section logic live in exactly one place.
 // `router` is a function, so it can carry these as properties without
 // changing how app.js consumes this module (`app.use(applicationRoutes)`).
 router.COMPUTER_SKILLS = COMPUTER_SKILLS;
 router.EDUCATION_LEVELS = EDUCATION_LEVELS;
 router.toBool = toBool;
 router.collectRows = collectRows;
-router.volunteerValidators = volunteerValidators;
-router.employmentValidators = employmentValidators;
-router.employmentDataFromBody = employmentDataFromBody;
+router.employmentFixedDataFromBody = employmentFixedDataFromBody;
+router.validateEmploymentFixedFields = validateEmploymentFixedFields;
 
 module.exports = router;

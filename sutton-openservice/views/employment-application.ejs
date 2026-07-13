@@ -21,90 +21,17 @@
           <select id="vacancyId" name="vacancyId">
             <option value="">— General application (no specific posting) —</option>
             <% vacancies.forEach(function(v) { %>
-              <option value="<%= v.id %>" <%= values.vacancyId === v.id ? 'selected' : '' %>><%= v.title %> (<%= v.departmentOrBoard %>)</option>
+              <option value="<%= v.id %>" <%= vacancyId === v.id ? 'selected' : '' %>><%= v.title %> (<%= v.departmentOrBoard %>)</option>
             <% }); %>
           </select>
         </div>
         <% } %>
 
-        <div class="field">
-          <label for="referralSource">How did you hear about this opening?</label>
-          <input type="text" id="referralSource" name="referralSource" placeholder="Advertisement, job posting, relative, friend, other" value="<%= values.referralSource || '' %>">
-        </div>
+        <% fields.forEach(function (field) { %>
+          <%- include('partials/dynamic-field', { field: field, value: values[field.name], error: errors[field.name] }) %>
+        <% }); %>
 
-        <div class="form-section-title">Section I: Personal Information</div>
-        <div class="field-row">
-          <div class="field <%= errors.lastName ? 'has-error' : '' %>"><label for="lastName">Last name *</label><input type="text" id="lastName" name="lastName" required value="<%= values.lastName || '' %>">
-            <% if (errors.lastName) { %><div class="field-error"><%= errors.lastName.msg %></div><% } %></div>
-          <div class="field <%= errors.firstName ? 'has-error' : '' %>"><label for="firstName">First name *</label><input type="text" id="firstName" name="firstName" required value="<%= values.firstName || '' %>">
-            <% if (errors.firstName) { %><div class="field-error"><%= errors.firstName.msg %></div><% } %></div>
-          <div class="field"><label for="middleName">Middle name</label><input type="text" id="middleName" name="middleName" value="<%= values.middleName || '' %>"></div>
-        </div>
-
-        <div class="field <%= errors.addressStreet ? 'has-error' : '' %>"><label for="addressStreet">Street address *</label><input type="text" id="addressStreet" name="addressStreet" required value="<%= values.addressStreet || '' %>"></div>
-        <div class="field-row">
-          <div class="field <%= errors.addressCity ? 'has-error' : '' %>"><label for="addressCity">Town/City *</label><input type="text" id="addressCity" name="addressCity" required value="<%= values.addressCity || '' %>"></div>
-          <div class="field"><label for="addressState">State</label><input type="text" id="addressState" name="addressState" maxlength="2" value="<%= values.addressState || 'MA' %>"></div>
-          <div class="field <%= errors.addressZip ? 'has-error' : '' %>"><label for="addressZip">ZIP *</label><input type="text" id="addressZip" name="addressZip" required value="<%= values.addressZip || '' %>"></div>
-        </div>
-        <div class="field-row">
-          <div class="field <%= errors.email ? 'has-error' : '' %>"><label for="email">Email *</label><input type="email" id="email" name="email" required value="<%= values.email || '' %>"></div>
-          <div class="field"><label for="phoneHome">Home phone</label><input type="tel" id="phoneHome" name="phoneHome" value="<%= values.phoneHome || '' %>"></div>
-          <div class="field"><label for="phoneCell">Cell phone</label><input type="tel" id="phoneCell" name="phoneCell" value="<%= values.phoneCell || '' %>"></div>
-        </div>
-
-        <div class="field <%= errors.workEligible ? 'has-error' : '' %>">
-          <label>If hired, can you provide proof of citizenship or legal right to work? *</label>
-          <div class="radio-group">
-            <label><input type="radio" name="workEligible" value="yes" required <%= values.workEligible==='yes'?'checked':'' %>> Yes</label>
-            <label><input type="radio" name="workEligible" value="no" <%= values.workEligible==='no'?'checked':'' %>> No</label>
-          </div>
-        </div>
-        <div class="field <%= errors.ageEighteenOrOlder ? 'has-error' : '' %>">
-          <label>Are you 18 years old or older? *</label>
-          <div class="radio-group">
-            <label><input type="radio" name="ageEighteenOrOlder" value="yes" required <%= values.ageEighteenOrOlder==='yes'?'checked':'' %>> Yes</label>
-            <label><input type="radio" name="ageEighteenOrOlder" value="no" <%= values.ageEighteenOrOlder==='no'?'checked':'' %>> No</label>
-          </div>
-        </div>
-        <div class="field <%= errors.workedForTownBefore ? 'has-error' : '' %>">
-          <label>Have you worked for the Town of Sutton before? *</label>
-          <div class="radio-group">
-            <label><input type="radio" name="workedForTownBefore" value="yes" required <%= values.workedForTownBefore==='yes'?'checked':'' %>> Yes</label>
-            <label><input type="radio" name="workedForTownBefore" value="no" <%= values.workedForTownBefore==='no'?'checked':'' %>> No</label>
-          </div>
-        </div>
-        <div class="field-row">
-          <div class="field"><label for="priorEmploymentFrom">If yes — from</label><input type="text" id="priorEmploymentFrom" name="priorEmploymentFrom" placeholder="MM/YYYY" value="<%= values.priorEmploymentFrom || '' %>"></div>
-          <div class="field"><label for="priorEmploymentTo">to</label><input type="text" id="priorEmploymentTo" name="priorEmploymentTo" placeholder="MM/YYYY" value="<%= values.priorEmploymentTo || '' %>"></div>
-          <div class="field"><label for="priorDepartment">Which department</label><input type="text" id="priorDepartment" name="priorDepartment" value="<%= values.priorDepartment || '' %>"></div>
-        </div>
-        <div class="field <%= errors.capableOfDuties ? 'has-error' : '' %>">
-          <label>Having reviewed the duties of the job, are you capable of performing all the duties of the job? *</label>
-          <div class="radio-group">
-            <label><input type="radio" name="capableOfDuties" value="yes" required <%= values.capableOfDuties==='yes'?'checked':'' %>> Yes</label>
-            <label><input type="radio" name="capableOfDuties" value="no" <%= values.capableOfDuties==='no'?'checked':'' %>> No</label>
-          </div>
-        </div>
-        <div class="field"><label for="incapableDutiesDetail">If no, which duty(ies) are you not capable of performing?</label><input type="text" id="incapableDutiesDetail" name="incapableDutiesDetail" value="<%= values.incapableDutiesDetail || '' %>"></div>
-        <div class="field-row">
-          <div class="field <%= errors.currentlyEmployed ? 'has-error' : '' %>">
-            <label>Are you currently employed? *</label>
-            <div class="radio-group">
-              <label><input type="radio" name="currentlyEmployed" value="yes" required <%= values.currentlyEmployed==='yes'?'checked':'' %>> Yes</label>
-              <label><input type="radio" name="currentlyEmployed" value="no" <%= values.currentlyEmployed==='no'?'checked':'' %>> No</label>
-            </div>
-          </div>
-          <div class="field <%= errors.onLayoffRecall ? 'has-error' : '' %>">
-            <label>Are you on a layoff and subject to recall? *</label>
-            <div class="radio-group">
-              <label><input type="radio" name="onLayoffRecall" value="yes" required <%= values.onLayoffRecall==='yes'?'checked':'' %>> Yes</label>
-              <label><input type="radio" name="onLayoffRecall" value="no" <%= values.onLayoffRecall==='no'?'checked':'' %>> No</label>
-            </div>
-          </div>
-        </div>
-
-        <div class="form-section-title">Section II: Employment History</div>
+        <div class="form-section-title">Employment History</div>
         <% for (let i = 0; i < 3; i++) { %>
           <div class="repeat-row">
             <h4>Employer <%= i + 1 %><%= i === 0 ? ' (most recent)' : '' %></h4>
@@ -131,7 +58,7 @@
         <% } %>
         <div class="field"><label for="volunteerWorkHistory">List any verified work performed on a volunteer basis</label><textarea id="volunteerWorkHistory" name="volunteerWorkHistory"><%= values.volunteerWorkHistory || '' %></textarea></div>
 
-        <div class="form-section-title">Section III: Education</div>
+        <div class="form-section-title">Education</div>
         <% EDUCATION_LEVELS.forEach(function(level, i) { %>
           <div class="repeat-row">
             <h4><%= level %></h4>
@@ -152,9 +79,8 @@
           </div>
         <% }); %>
         <div class="field"><label for="specializedTraining">Specialized training, apprenticeship license, foreign language skills, extracurricular activities</label><textarea id="specializedTraining" name="specializedTraining"><%= values.specializedTraining || '' %></textarea></div>
-        <div class="field"><label for="additionalInfo">Additional information helpful in understanding your application</label><textarea id="additionalInfo" name="additionalInfo"><%= values.additionalInfo || '' %></textarea></div>
 
-        <div class="form-section-title">Section IV: Computer Skills</div>
+        <div class="form-section-title">Computer Skills</div>
         <table class="data-table skills-table u-mb-10">
           <thead><tr><th>Skill</th><th>Beginner</th><th>Intermediate</th><th>Advanced</th></tr></thead>
           <tbody>
@@ -172,27 +98,9 @@
         <div class="field">
           <label for="resume">Resume (optional) — PDF or Word, up to <%= maxUploadMb %>MB</label>
           <input type="file" id="resume" name="resume" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
-          <div class="hint">You may also use this space to attach a brief statement of why you wish to work for the Town of Sutton.</div>
         </div>
 
-        <div class="form-section-title">Section V: Military History</div>
-        <div class="field">
-          <label>Veteran of U.S. Armed Forces?</label>
-          <div class="radio-group">
-            <label><input type="radio" name="veteran" value="yes" <%= values.veteran==='yes'?'checked':'' %>> Yes</label>
-            <label><input type="radio" name="veteran" value="no" <%= values.veteran!=='yes'?'checked':'' %>> No</label>
-          </div>
-        </div>
-        <div class="field-row">
-          <div class="field"><label for="militaryBranch">Branch</label><input type="text" id="militaryBranch" name="militaryBranch" value="<%= values.militaryBranch || '' %>"></div>
-          <div class="field"><label for="militaryRankDischarged">Rank when discharged</label><input type="text" id="militaryRankDischarged" name="militaryRankDischarged" value="<%= values.militaryRankDischarged || '' %>"></div>
-          <div class="field"><label for="militaryDischargeStatus">Discharge status</label><input type="text" id="militaryDischargeStatus" name="militaryDischargeStatus" value="<%= values.militaryDischargeStatus || '' %>"></div>
-        </div>
-        <div class="field"><label for="presentMilitaryStatus">Present military status</label><input type="text" id="presentMilitaryStatus" name="presentMilitaryStatus" value="<%= values.presentMilitaryStatus || '' %>"></div>
-        <div class="field"><label for="militaryServiceSchool">Service school or special experience</label><textarea id="militaryServiceSchool" name="militaryServiceSchool"><%= values.militaryServiceSchool || '' %></textarea></div>
-
-        <div class="form-section-title">Section VI: References &amp; Miscellaneous</div>
-        <div class="field"><label for="civicActivities">Professional, trade, business or civic activities and offices held</label><textarea id="civicActivities" name="civicActivities"><%= values.civicActivities || '' %></textarea></div>
+        <div class="form-section-title">References</div>
         <p class="hint">Please supply name, address, and phone number of three (3) references who are not related to you.</p>
         <% for (let i = 0; i < 3; i++) { %>
           <div class="repeat-row">
@@ -205,7 +113,7 @@
           </div>
         <% } %>
 
-        <div class="form-section-title">Section VII: Applicant's Acknowledgement</div>
+        <div class="form-section-title">Applicant's Acknowledgement</div>
         <div class="alert alert-info">
           It is unlawful in Massachusetts to require or administer a lie detector test as a condition of employment. I authorize present and former employers, educational institutions, and references to disclose relevant information to the Town, and release all parties from liability for such disclosure. I certify that all information provided is true, accurate, and complete to the best of my knowledge. I understand an offer of employment may be conditioned on a medical screening exam, pre-employment drug screening, criminal records check, and/or background check, and that any appointment is probationary and at-will unless otherwise stated in a collective bargaining agreement.
         </div>

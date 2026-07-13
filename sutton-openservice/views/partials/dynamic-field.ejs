@@ -1,0 +1,64 @@
+<%
+  // Expects locals: field (a FormField row), value (current value — string,
+  // boolean, or string[] depending on fieldType), error ({msg} or undefined).
+  var fid = "f_" + field.name;
+  var opts = field.options || [];
+  var inputTypeMap = { TEXT: "text", EMAIL: "email", TEL: "tel", DATE: "date", NUMBER: "number" };
+%>
+<% if (field.fieldType === "SECTION_HEADER") { %>
+  <div class="form-section-title"><%= field.label %></div>
+  <% if (field.helpText) { %><p class="hint"><%= field.helpText %></p><% } %>
+<% } else if (field.fieldType === "PARAGRAPH") { %>
+  <p><%= field.label %></p>
+<% } else { %>
+  <div class="field <%= error ? "has-error" : "" %>">
+    <% if (field.fieldType !== "CHECKBOX_SINGLE") { %>
+      <label for="<%= fid %>"><%= field.label %><%= field.required ? " *" : "" %></label>
+    <% } %>
+
+    <% if (inputTypeMap[field.fieldType]) { %>
+      <input type="<%= inputTypeMap[field.fieldType] %>" id="<%= fid %>" name="<%= field.name %>" <%= field.required ? "required" : "" %> value="<%= value || "" %>">
+
+    <% } else if (field.fieldType === "TEXTAREA") { %>
+      <textarea id="<%= fid %>" name="<%= field.name %>" <%= field.required ? "required" : "" %>><%= value || "" %></textarea>
+
+    <% } else if (field.fieldType === "SELECT") { %>
+      <select id="<%= fid %>" name="<%= field.name %>" <%= field.required ? "required" : "" %>>
+        <option value="">— Select —</option>
+        <% opts.forEach(function (o) { %>
+          <option value="<%= o %>" <%= value === o ? "selected" : "" %>><%= o %></option>
+        <% }); %>
+      </select>
+
+    <% } else if (field.fieldType === "RADIO") { %>
+      <div class="radio-group">
+        <% opts.forEach(function (o, i) { %>
+          <label>
+            <input type="radio" name="<%= field.name %>" value="<%= o %>" id="<%= fid %>_<%= i %>" <%= value === o ? "checked" : "" %> <%= field.required ? "required" : "" %>>
+            <%= o %>
+          </label>
+        <% }); %>
+      </div>
+
+    <% } else if (field.fieldType === "CHECKBOX_GROUP") { %>
+      <div class="radio-group">
+        <% var selectedList = Array.isArray(value) ? value : []; %>
+        <% opts.forEach(function (o, i) { %>
+          <label>
+            <input type="checkbox" name="<%= field.name %>[]" value="<%= o %>" id="<%= fid %>_<%= i %>" <%= selectedList.indexOf(o) !== -1 ? "checked" : "" %>>
+            <%= o %>
+          </label>
+        <% }); %>
+      </div>
+
+    <% } else if (field.fieldType === "CHECKBOX_SINGLE") { %>
+      <label>
+        <input type="checkbox" id="<%= fid %>" name="<%= field.name %>" <%= value ? "checked" : "" %>>
+        <%= field.label %><%= field.required ? " *" : "" %>
+      </label>
+    <% } %>
+
+    <% if (field.helpText) { %><div class="hint"><%= field.helpText %></div><% } %>
+    <% if (error) { %><div class="field-error"><%= error.msg %></div><% } %>
+  </div>
+<% } %>

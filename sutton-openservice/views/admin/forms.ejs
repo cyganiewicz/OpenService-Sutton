@@ -1,0 +1,24 @@
+<div class="admin-shell">
+  <%- include('../partials/admin-sidebar') %>
+  <div class="admin-content">
+    <h1 class="section-title">Application Forms</h1>
+    <p class="section-sub">Edit the questions on the public Volunteer and Employment application forms — add, remove, relabel, retype, and reorder fields. Changes take effect immediately on the live forms.</p>
+
+    <div class="card-grid">
+      <div class="card">
+        <h3>Volunteer Application</h3>
+        <p><%= volunteerCount %> field<%= volunteerCount === 1 ? '' : 's' %> currently on this form.</p>
+        <a class="btn btn-primary btn-sm" href="/admin/forms/VOLUNTEER/edit">Edit Form</a>
+      </div>
+      <div class="card">
+        <h3>Employment Application</h3>
+        <p><%= employmentCount %> field<%= employmentCount === 1 ? '' : 's' %> currently on this form.</p>
+        <a class="btn btn-primary btn-sm" href="/admin/forms/EMPLOYMENT/edit">Edit Form</a>
+      </div>
+    </div>
+
+    <div class="alert alert-info u-mt-16">
+      Employment History, Education, Computer Skills, References, resume upload, and the signature/acknowledgement section are fixed parts of the Employment form and aren't editable here.
+    </div>
+  </div>
+</div>

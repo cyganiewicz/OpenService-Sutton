@@ -1,0 +1,119 @@
+<%
+  var fieldTypeLabels = {
+    TEXT: "Text", TEXTAREA: "Paragraph text", EMAIL: "Email", TEL: "Phone",
+    DATE: "Date", NUMBER: "Number", SELECT: "Dropdown", RADIO: "Multiple choice",
+    CHECKBOX_GROUP: "Checkboxes (multi-select)", CHECKBOX_SINGLE: "Single checkbox",
+    SECTION_HEADER: "Section header", PARAGRAPH: "Instructional text",
+  };
+%>
+<div class="admin-shell">
+  <%- include('../partials/admin-sidebar') %>
+  <div class="admin-content">
+    <div class="admin-topbar">
+      <div>
+        <h1 class="section-title u-m-0"><%= title %></h1>
+        <p class="section-sub u-m-0">Drag fields by the handle to reorder. Changes take effect immediately on the live form.</p>
+      </div>
+      <a class="btn btn-sm btn-outline-brand" href="/admin/forms">&larr; All Forms</a>
+    </div>
+
+    <% if (errors && errors.name) { %><div class="alert alert-error"><%= errors.name.msg %></div><% } %>
+
+    <ul class="field-list" data-reorder-url="/admin/forms/<%= formType %>/reorder" data-csrf="<%= csrfToken %>">
+      <% fields.forEach(function (field) { %>
+        <% var isEditingThis = editingField && editingField.id === field.id; %>
+        <li class="field-card" draggable="true" data-field-id="<%= field.id %>">
+          <span class="drag-handle" aria-hidden="true">::</span>
+          <div class="field-card-body">
+            <div class="field-card-title"><%= field.label %></div>
+            <div class="field-card-meta">
+              <span class="field-type-badge"><%= fieldTypeLabels[field.fieldType] || field.fieldType %></span>
+              &nbsp;field name: <code><%= field.name %></code><% if (field.required) { %> &nbsp;· required<% } %>
+            </div>
+
+            <details class="u-mt-10" <%= isEditingThis ? 'open' : '' %>>
+              <summary>Edit</summary>
+              <form method="POST" action="/admin/forms/<%= formType %>/fields/<%= field.id %>" class="u-mt-10">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <div class="field">
+                  <label>Label *</label>
+                  <input type="text" name="label" required maxlength="300" value="<%= isEditingThis ? (editingField.label || '') : field.label %>">
+                  <% if (isEditingThis && errors.label) { %><div class="field-error"><%= errors.label.msg %></div><% } %>
+                </div>
+                <div class="field">
+                  <label>Field type *</label>
+                  <select name="fieldType" required>
+                    <% fieldTypes.forEach(function (ft) { %>
+                      <option value="<%= ft %>" <%= (isEditingThis ? editingField.fieldType : field.fieldType) === ft ? 'selected' : '' %>><%= fieldTypeLabels[ft] || ft %></option>
+                    <% }); %>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Help text (optional)</label>
+                  <input type="text" name="helpText" maxlength="300" value="<%= (isEditingThis ? editingField.helpText : field.helpText) || '' %>">
+                </div>
+                <div class="field">
+                  <label>Options — one per line (dropdown / multiple choice / checkboxes only)</label>
+                  <textarea name="options" rows="3"><%= isEditingThis ? (editingField.options || '') : ((field.options || []).join('\n')) %></textarea>
+                </div>
+                <div class="field">
+                  <label><input type="checkbox" name="required" <%= (isEditingThis ? editingField.required === 'on' : field.required) ? 'checked' : '' %>> Required</label>
+                </div>
+                <button class="btn btn-primary btn-sm" type="submit">Save Field</button>
+              </form>
+              <form method="POST" action="/admin/forms/<%= formType %>/fields/<%= field.id %>/delete" class="u-mt-10" data-confirm="Delete the field &quot;<%= field.label %>&quot;? This can't be undone.">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn btn-sm btn-outline-brand" type="submit">Delete Field</button>
+              </form>
+            </details>
+          </div>
+        </li>
+      <% }); %>
+    </ul>
+
+    <p class="hint" data-reorder-status></p>
+
+    <% if (!fields.length) { %>
+      <p class="hint">No fields on this form yet — add one below.</p>
+    <% } %>
+
+    <div class="card u-mt-16">
+      <h3>Add a field</h3>
+      <form method="POST" action="/admin/forms/<%= formType %>/fields">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="field-row">
+          <div class="field <%= errors.name ? 'has-error' : '' %>">
+            <label>Field name (machine name, e.g. <code>emergencyContact</code>) *</label>
+            <input type="text" name="name" required pattern="[a-zA-Z][a-zA-Z0-9_]*" value="<%= newFieldValues ? (newFieldValues.name || '') : '' %>">
+            <% if (errors.name) { %><div class="field-error"><%= errors.name.msg %></div><% } %>
+          </div>
+          <div class="field <%= errors.label ? 'has-error' : '' %>">
+            <label>Label (shown to applicants) *</label>
+            <input type="text" name="label" required maxlength="300" value="<%= newFieldValues ? (newFieldValues.label || '') : '' %>">
+            <% if (errors.label) { %><div class="field-error"><%= errors.label.msg %></div><% } %>
+          </div>
+        </div>
+        <div class="field">
+          <label>Field type *</label>
+          <select name="fieldType" required>
+            <% fieldTypes.forEach(function (ft) { %>
+              <option value="<%= ft %>" <%= newFieldValues && newFieldValues.fieldType === ft ? 'selected' : '' %>><%= fieldTypeLabels[ft] || ft %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="field">
+          <label>Help text (optional)</label>
+          <input type="text" name="helpText" maxlength="300" value="<%= newFieldValues ? (newFieldValues.helpText || '') : '' %>">
+        </div>
+        <div class="field">
+          <label>Options — one per line (dropdown / multiple choice / checkboxes only)</label>
+          <textarea name="options" rows="3"><%= newFieldValues ? (newFieldValues.options || '') : '' %></textarea>
+        </div>
+        <div class="field">
+          <label><input type="checkbox" name="required" <%= newFieldValues && newFieldValues.required === 'on' ? 'checked' : '' %>> Required</label>
+        </div>
+        <button class="btn btn-primary btn-sm" type="submit">Add Field</button>
+      </form>
+    </div>
+  </div>
+</div>

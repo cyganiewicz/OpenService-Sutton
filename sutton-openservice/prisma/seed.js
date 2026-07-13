@@ -98,6 +98,32 @@ async function main() {
     },
   });
 
+  // Seed the default question set for both application forms — but only if
+  // that form has zero fields, so this never overwrites an admin's own
+  // edits on a re-run of the seed script.
+  const { VOLUNTEER_FIELDS, EMPLOYMENT_FIELDS } = require("./defaultFormFields");
+  async function seedFormType(formType, fields) {
+    const existingCount = await prisma.formField.count({ where: { formType } });
+    if (existingCount > 0) {
+      console.log(`${formType} form already has ${existingCount} field(s) — skipping default seed.`);
+      return;
+    }
+    await prisma.formField.createMany({
+      data: fields.map((f, i) => ({
+        formType,
+        name: f.name,
+        label: f.label,
+        fieldType: f.fieldType,
+        required: f.required,
+        options: f.options || undefined,
+        order: i,
+      })),
+    });
+    console.log(`Seeded ${fields.length} default field(s) for ${formType}.`);
+  }
+  await seedFormType("VOLUNTEER", VOLUNTEER_FIELDS);
+  await seedFormType("EMPLOYMENT", EMPLOYMENT_FIELDS);
+
   console.log("Seed complete.");
 }
 

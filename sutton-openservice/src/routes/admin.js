@@ -7,38 +7,15 @@ const { requireAdmin, requireRole } = require("../middleware/auth");
 const { handleValidation } = require("../middleware/validate");
 const { loginLimiter } = require("../middleware/security");
 const { sanitizeRichText } = require("../utils/richText");
+const { loadFormFields, readDynamicResponses } = require("../utils/dynamicForm");
 const applicationRoutes = require("./applications");
 const {
   COMPUTER_SKILLS,
   EDUCATION_LEVELS,
-  volunteerValidators,
-  employmentValidators,
-  employmentDataFromBody,
+  employmentFixedDataFromBody,
+  validateEmploymentFixedFields,
 } = applicationRoutes;
 const router = express.Router();
-
-// Same field validation as the public employment form, minus the
-// signature/acknowledgement checks — the edit screen deliberately has no
-// acknowledgement checkbox, since editing doesn't re-execute the applicant's
-// original legal signature (see employmentAppToFormValues / the edit route).
-// Listed explicitly (rather than filtering employmentValidators by internal
-// structure) so this doesn't depend on express-validator's internal shape.
-const employmentEditValidators = [
-  body("lastName").trim().notEmpty().withMessage("Last name is required.").isLength({ max: 100 }).escape(),
-  body("firstName").trim().notEmpty().withMessage("First name is required.").isLength({ max: 100 }).escape(),
-  body("middleName").optional({ checkFalsy: true }).isLength({ max: 100 }).escape(),
-  body("addressStreet").trim().notEmpty().withMessage("Street address is required.").isLength({ max: 200 }).escape(),
-  body("addressCity").trim().notEmpty().withMessage("City/Town is required.").isLength({ max: 100 }).escape(),
-  body("addressState").trim().notEmpty().isLength({ max: 2 }).escape(),
-  body("addressZip").trim().notEmpty().withMessage("ZIP code is required.").isLength({ max: 10 }).escape(),
-  body("email").trim().isEmail().withMessage("A valid email is required.").normalizeEmail(),
-  body("workEligible").notEmpty().withMessage("Please answer the work-eligibility question."),
-  body("ageEighteenOrOlder").notEmpty().withMessage("Please answer the age question."),
-  body("workedForTownBefore").notEmpty().withMessage("Please answer whether you've worked for the Town before."),
-  body("capableOfDuties").notEmpty().withMessage("Please answer the duties question."),
-  body("currentlyEmployed").notEmpty(),
-  body("onLayoffRecall").notEmpty(),
-];
 
 function generateTempPassword() {
   // 16 random bytes, base64url-ish, trimmed to a typeable length.
@@ -233,6 +210,182 @@ router.post("/admin/staff/:id/reset-password", requireAdmin, requireRole("ADMINI
       generatedPassword: { email: user.email, password: tempPassword },
       errors: {},
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ------------------------------ Form builder ------------------------------- */
+// Lets admins fully own the question set on the public Volunteer and
+// Employment application forms: add, remove, relabel, and reorder fields.
+// Employment's repeating sections (work history, education, computer
+// skills, references), resume upload, and signature/acknowledgement are
+// NOT editable here — see the FormField model comment in schema.prisma.
+
+function requireValidFormType(req, res, next) {
+  if (!["VOLUNTEER", "EMPLOYMENT"].includes(req.params.formType)) {
+    return res.status(404).render("errors/404", { title: "Not Found" });
+  }
+  next();
+}
+
+const FIELD_TYPES = ["TEXT", "TEXTAREA", "EMAIL", "TEL", "DATE", "NUMBER", "SELECT", "RADIO", "CHECKBOX_GROUP", "CHECKBOX_SINGLE", "SECTION_HEADER", "PARAGRAPH"];
+const FIELD_TYPES_WITH_OPTIONS = ["SELECT", "RADIO", "CHECKBOX_GROUP"];
+
+router.get("/admin/forms", requireAdmin, async (req, res, next) => {
+  try {
+    const [volunteerCount, employmentCount] = await Promise.all([
+      prisma.formField.count({ where: { formType: "VOLUNTEER" } }),
+      prisma.formField.count({ where: { formType: "EMPLOYMENT" } }),
+    ]);
+    res.render("admin/forms", { title: "Application Forms", volunteerCount, employmentCount });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/admin/forms/:formType/edit", requireAdmin, requireValidFormType, async (req, res, next) => {
+  try {
+    const fields = await prisma.formField.findMany({ where: { formType: req.params.formType }, orderBy: { order: "asc" } });
+    res.render("admin/form-builder", {
+      title: (req.params.formType === "VOLUNTEER" ? "Volunteer" : "Employment") + " Application Form",
+      formType: req.params.formType,
+      fields,
+      fieldTypes: FIELD_TYPES,
+      fieldTypesWithOptions: FIELD_TYPES_WITH_OPTIONS,
+      editingField: null,
+      newFieldValues: null,
+      errors: {},
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+function parseOptions(raw) {
+  // Textarea, one option per line.
+  if (!raw) return null;
+  const list = String(raw)
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return list.length ? list : null;
+}
+
+// mode: "add" reopens the "add a field" panel with the submitted values;
+// "edit" reopens the specific field's edit panel (identified by fieldId).
+async function renderBuilderWithError(req, res, errors, mode, fieldId) {
+  const fields = await prisma.formField.findMany({ where: { formType: req.params.formType }, orderBy: { order: "asc" } });
+  return res.status(422).render("admin/form-builder", {
+    title: (req.params.formType === "VOLUNTEER" ? "Volunteer" : "Employment") + " Application Form",
+    formType: req.params.formType,
+    fields,
+    fieldTypes: FIELD_TYPES,
+    fieldTypesWithOptions: FIELD_TYPES_WITH_OPTIONS,
+    editingField: mode === "edit" ? { id: fieldId, ...req.body } : null,
+    newFieldValues: mode === "add" ? req.body : null,
+    errors,
+  });
+}
+
+router.post(
+  "/admin/forms/:formType/fields",
+  requireAdmin,
+  requireValidFormType,
+  [
+    body("name")
+      .trim()
+      .notEmpty()
+      .withMessage("A machine name is required.")
+      .matches(/^[a-zA-Z][a-zA-Z0-9_]*$/)
+      .withMessage("Name must start with a letter and contain only letters, numbers, and underscores."),
+    body("label").trim().notEmpty().withMessage("A label is required.").isLength({ max: 300 }),
+    body("fieldType").isIn(FIELD_TYPES),
+  ],
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return renderBuilderWithError(req, res, errors.mapped(), "add");
+      }
+      const existing = await prisma.formField.findUnique({
+        where: { formType_name: { formType: req.params.formType, name: req.body.name } },
+      });
+      if (existing) {
+        return renderBuilderWithError(req, res, { name: { msg: "A field with that name already exists on this form." } }, "add");
+      }
+      const maxOrder = await prisma.formField.aggregate({
+        where: { formType: req.params.formType },
+        _max: { order: true },
+      });
+      await prisma.formField.create({
+        data: {
+          formType: req.params.formType,
+          name: req.body.name,
+          label: req.body.label,
+          fieldType: req.body.fieldType,
+          required: req.body.required === "on",
+          helpText: req.body.helpText || null,
+          options: FIELD_TYPES_WITH_OPTIONS.includes(req.body.fieldType) ? parseOptions(req.body.options) : null,
+          order: (maxOrder._max.order ?? -1) + 1,
+        },
+      });
+      res.redirect(`/admin/forms/${req.params.formType}/edit`);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+router.post(
+  "/admin/forms/:formType/fields/:id",
+  requireAdmin,
+  requireValidFormType,
+  [
+    body("label").trim().notEmpty().withMessage("A label is required.").isLength({ max: 300 }),
+    body("fieldType").isIn(FIELD_TYPES),
+  ],
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return renderBuilderWithError(req, res, errors.mapped(), "edit", req.params.id);
+      }
+      await prisma.formField.update({
+        where: { id: req.params.id },
+        data: {
+          label: req.body.label,
+          fieldType: req.body.fieldType,
+          required: req.body.required === "on",
+          helpText: req.body.helpText || null,
+          options: FIELD_TYPES_WITH_OPTIONS.includes(req.body.fieldType) ? parseOptions(req.body.options) : null,
+        },
+      });
+      res.redirect(`/admin/forms/${req.params.formType}/edit`);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+router.post("/admin/forms/:formType/fields/:id/delete", requireAdmin, requireValidFormType, async (req, res, next) => {
+  try {
+    await prisma.formField.delete({ where: { id: req.params.id } });
+    res.redirect(`/admin/forms/${req.params.formType}/edit`);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Drag-and-drop reorder — called via fetch() from public/js/form-builder.js
+// with a JSON body { _csrf, order: [fieldId, fieldId, ...] }.
+router.post("/admin/forms/:formType/reorder", requireAdmin, requireValidFormType, async (req, res, next) => {
+  try {
+    const order = Array.isArray(req.body.order) ? req.body.order : [];
+    await prisma.$transaction(
+      order.map((id, index) => prisma.formField.update({ where: { id }, data: { order: index } }))
+    );
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }
@@ -479,7 +632,8 @@ router.get("/admin/applications/volunteer/:id", requireAdmin, async (req, res, n
   try {
     const app = await prisma.volunteerApplication.findUnique({ where: { id: req.params.id }, include: { vacancy: true } });
     if (!app) return res.status(404).render("errors/404", { title: "Not Found" });
-    res.render("admin/application-volunteer-detail", { title: "Volunteer Application", app });
+    const fields = await loadFormFields("VOLUNTEER");
+    res.render("admin/application-volunteer-detail", { title: "Volunteer Application", app, fields });
   } catch (err) {
     next(err);
   }
@@ -496,59 +650,56 @@ router.post("/admin/applications/volunteer/:id/status", requireAdmin, async (req
 
 router.get("/admin/applications/volunteer/:id/edit", requireAdmin, async (req, res, next) => {
   try {
-    const [app, vacancies] = await Promise.all([
+    const [app, vacancies, fields] = await Promise.all([
       prisma.volunteerApplication.findUnique({ where: { id: req.params.id } }),
       prisma.jobVacancy.findMany({ where: { category: "BOARD_COMMISSION" }, orderBy: { title: "asc" } }),
+      loadFormFields("VOLUNTEER"),
     ]);
     if (!app) return res.status(404).render("errors/404", { title: "Not Found" });
-    res.render("admin/application-volunteer-edit", { title: "Edit Volunteer Application", app, vacancies, errors: {} });
+    res.render("admin/application-volunteer-edit", {
+      title: "Edit Volunteer Application",
+      appId: app.id,
+      vacancyId: app.vacancyId || "",
+      values: app.responses || {},
+      fields,
+      vacancies,
+      errors: {},
+    });
   } catch (err) {
     next(err);
   }
 });
 
-router.post(
-  "/admin/applications/volunteer/:id/edit",
-  requireAdmin,
-  volunteerValidators,
-  async (req, res, next) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        const vacancies = await prisma.jobVacancy.findMany({ where: { category: "BOARD_COMMISSION" }, orderBy: { title: "asc" } });
-        return res.status(422).render("admin/application-volunteer-edit", {
-          title: "Edit Volunteer Application",
-          app: { id: req.params.id, ...req.body },
-          vacancies,
-          errors: errors.mapped(),
-        });
-      }
-      const b = req.body;
-      await prisma.volunteerApplication.update({
-        where: { id: req.params.id },
-        data: {
-          vacancyId: b.vacancyId || null,
-          boardsInterestedIn: b.boardsInterestedIn,
-          firstName: b.firstName,
-          lastName: b.lastName,
-          email: b.email,
-          phone: b.phone,
-          addressStreet: b.addressStreet,
-          addressCity: b.addressCity,
-          addressState: b.addressState || "MA",
-          addressZip: b.addressZip,
-          availability: b.availability || null,
-          relevantExperience: b.relevantExperience || null,
-          whyInterested: b.whyInterested || null,
-          referralSource: b.referralSource || null,
-        },
+router.post("/admin/applications/volunteer/:id/edit", requireAdmin, async (req, res, next) => {
+  try {
+    const existing = await prisma.volunteerApplication.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).render("errors/404", { title: "Not Found" });
+
+    const fields = await loadFormFields("VOLUNTEER");
+    const { errors, responses } = readDynamicResponses(fields, req.body);
+
+    if (Object.keys(errors).length) {
+      const vacancies = await prisma.jobVacancy.findMany({ where: { category: "BOARD_COMMISSION" }, orderBy: { title: "asc" } });
+      return res.status(422).render("admin/application-volunteer-edit", {
+        title: "Edit Volunteer Application",
+        appId: req.params.id,
+        vacancyId: req.body.vacancyId || "",
+        values: req.body,
+        fields,
+        vacancies,
+        errors,
       });
-      res.redirect(`/admin/applications/volunteer/${req.params.id}`);
-    } catch (err) {
-      next(err);
     }
+
+    await prisma.volunteerApplication.update({
+      where: { id: req.params.id },
+      data: { vacancyId: req.body.vacancyId || null, responses },
+    });
+    res.redirect(`/admin/applications/volunteer/${req.params.id}`);
+  } catch (err) {
+    next(err);
   }
-);
+});
 
 router.get("/admin/applications/employment", requireAdmin, async (req, res, next) => {
   try {
@@ -566,7 +717,8 @@ router.get("/admin/applications/employment/:id", requireAdmin, async (req, res, 
   try {
     const app = await prisma.employmentApplication.findUnique({ where: { id: req.params.id }, include: { vacancy: true } });
     if (!app) return res.status(404).render("errors/404", { title: "Not Found" });
-    res.render("admin/application-employment-detail", { title: "Employment Application", app });
+    const fields = await loadFormFields("EMPLOYMENT");
+    res.render("admin/application-employment-detail", { title: "Employment Application", app, fields });
   } catch (err) {
     next(err);
   }
@@ -581,50 +733,21 @@ router.post("/admin/applications/employment/:id/status", requireAdmin, async (re
   }
 });
 
-// The employment form's field names are flat (emp_employerName_0, edu_school_1,
-// "skill_Word Processing", ref_name_0, ...) because that's what the repeating
-// paper-form sections need. The DB stores the repeating sections as JSON, so
-// re-editing requires converting DB shape -> flat form-field shape. Doing
-// that conversion once here means the GET (load from DB) and POST-with-errors
-// (re-render what the admin just typed) paths can share one template that
-// only ever reads a flat `values` object — same pattern the public form uses.
+// The employment form's FIXED-section field names are flat (emp_employerName_0,
+// edu_school_1, "skill_Word Processing", ref_name_0, ...) because that's what
+// the repeating paper-form sections need. The DB stores those sections as
+// JSON, so re-editing requires converting DB shape -> flat form-field shape.
+// Admin-configurable questions (everything else) are already flat — they
+// live in app.responses keyed by FormField.name — so they pass through as-is.
+// Doing the fixed-section conversion once here means the GET (load from DB)
+// and POST-with-errors (re-render what the admin just typed) paths can share
+// one template that only ever reads a flat `values` object, same pattern the
+// public form uses.
 function employmentAppToFormValues(app) {
-  const values = {
-    vacancyId: app.vacancyId || "",
-    referralSource: app.referralSource || "",
-    lastName: app.lastName,
-    firstName: app.firstName,
-    middleName: app.middleName || "",
-    addressStreet: app.addressStreet,
-    addressCity: app.addressCity,
-    addressState: app.addressState,
-    addressZip: app.addressZip,
-    email: app.email,
-    phoneHome: app.phoneHome || "",
-    phoneCell: app.phoneCell || "",
-    workEligible: app.workEligible ? "yes" : "no",
-    ageEighteenOrOlder: app.ageEighteenOrOlder ? "yes" : "no",
-    workedForTownBefore: app.workedForTownBefore ? "yes" : "no",
-    priorEmploymentFrom: app.priorEmploymentFrom || "",
-    priorEmploymentTo: app.priorEmploymentTo || "",
-    priorDepartment: app.priorDepartment || "",
-    capableOfDuties: app.capableOfDuties ? "yes" : "no",
-    incapableDutiesDetail: app.incapableDutiesDetail || "",
-    currentlyEmployed: app.currentlyEmployed ? "yes" : "no",
-    onLayoffRecall: app.onLayoffRecall ? "yes" : "no",
-    volunteerWorkHistory: app.volunteerWorkHistory || "",
-    specializedTraining: app.specializedTraining || "",
-    additionalInfo: app.additionalInfo || "",
-    veteran: app.veteran ? "yes" : "no",
-    militaryBranch: app.militaryBranch || "",
-    militaryRankDischarged: app.militaryRankDischarged || "",
-    militaryDischargeStatus: app.militaryDischargeStatus || "",
-    presentMilitaryStatus: app.presentMilitaryStatus || "",
-    militaryServiceSchool: app.militaryServiceSchool || "",
-    civicActivities: app.civicActivities || "",
-    signatureTypedName: app.signatureTypedName,
-    acknowledged: app.acknowledged ? "on" : "",
-  };
+  const values = { ...(app.responses || {}) };
+  values.volunteerWorkHistory = app.volunteerWorkHistory || "";
+  values.specializedTraining = app.specializedTraining || "";
+  values.signatureTypedName = app.signatureTypedName || "";
 
   (app.employmentHistory || []).forEach((row, i) => {
     values[`emp_employerName_${i}`] = row.employerName || "";
@@ -662,17 +785,20 @@ function employmentAppToFormValues(app) {
 
 router.get("/admin/applications/employment/:id/edit", requireAdmin, async (req, res, next) => {
   try {
-    const [app, vacancies] = await Promise.all([
+    const [app, vacancies, fields] = await Promise.all([
       prisma.employmentApplication.findUnique({ where: { id: req.params.id } }),
       prisma.jobVacancy.findMany({ where: { category: "TOWN_DEPARTMENT" }, orderBy: { title: "asc" } }),
+      loadFormFields("EMPLOYMENT"),
     ]);
     if (!app) return res.status(404).render("errors/404", { title: "Not Found" });
     res.render("admin/application-employment-edit", {
       title: "Edit Employment Application",
       appId: app.id,
+      vacancyId: app.vacancyId || "",
       hasResume: Boolean(app.resumeFileName),
       resumeFileName: app.resumeFileName,
       values: employmentAppToFormValues(app),
+      fields,
       vacancies,
       errors: {},
       COMPUTER_SKILLS,
@@ -683,39 +809,46 @@ router.get("/admin/applications/employment/:id/edit", requireAdmin, async (req, 
   }
 });
 
-router.post("/admin/applications/employment/:id/edit", requireAdmin, employmentEditValidators, async (req, res, next) => {
+router.post("/admin/applications/employment/:id/edit", requireAdmin, async (req, res, next) => {
   try {
-    const errors = validationResult(req);
     const existing = await prisma.employmentApplication.findUnique({ where: { id: req.params.id } });
     if (!existing) return res.status(404).render("errors/404", { title: "Not Found" });
 
-    if (!errors.isEmpty()) {
+    const fields = await loadFormFields("EMPLOYMENT");
+    const { errors, responses } = readDynamicResponses(fields, req.body);
+
+    if (Object.keys(errors).length) {
       const vacancies = await prisma.jobVacancy.findMany({ where: { category: "TOWN_DEPARTMENT" }, orderBy: { title: "asc" } });
       return res.status(422).render("admin/application-employment-edit", {
         title: "Edit Employment Application",
         appId: req.params.id,
+        vacancyId: req.body.vacancyId || "",
         hasResume: Boolean(existing.resumeFileName),
         resumeFileName: existing.resumeFileName,
-        values: req.body,
+        values: { ...req.body, signatureTypedName: existing.signatureTypedName },
+        fields,
         vacancies,
-        errors: errors.mapped(),
+        errors,
         COMPUTER_SKILLS,
         EDUCATION_LEVELS,
       });
     }
 
-    const data = employmentDataFromBody(req.body);
     // Editing corrects contact/history details — it does not re-execute the
     // applicant's original legal acknowledgement/signature or touch their
-    // uploaded resume, so those are preserved from the existing record.
-    delete data.signatureDate;
+    // uploaded resume, so those are preserved from the existing record and
+    // aren't collected on this form at all.
+    const fixedData = employmentFixedDataFromBody(req.body);
+    delete fixedData.signatureDate;
+    delete fixedData.signatureTypedName;
+    delete fixedData.acknowledged;
+
     await prisma.employmentApplication.update({
       where: { id: req.params.id },
       data: {
-        ...data,
-        signatureTypedName: existing.signatureTypedName,
-        signatureDate: existing.signatureDate,
-        acknowledged: existing.acknowledged,
+        vacancyId: req.body.vacancyId || null,
+        responses,
+        ...fixedData,
       },
     });
     res.redirect(`/admin/applications/employment/${req.params.id}`);

@@ -1,0 +1,55 @@
+<section class="section">
+  <div class="wrap">
+    <p><a href="/vacancies">&larr; Back to all vacancies</a></p>
+
+    <%
+      function formatPay(v) {
+        if (!v.payType) return null;
+        if (v.payType === 'UNPAID') return 'Unpaid / Volunteer' + (v.payNote ? ' — ' + v.payNote : '');
+        var suffix = v.payType === 'HOURLY' ? '/hr' : (v.payType === 'SALARIED' ? '/yr' : '');
+        var fmt = function (n) { return '$' + Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 }); };
+        var range = null;
+        if (v.payMin != null && v.payMax != null && Number(v.payMin) !== Number(v.payMax)) range = fmt(v.payMin) + '–' + fmt(v.payMax) + suffix;
+        else if (v.payMin != null) range = fmt(v.payMin) + suffix;
+        else if (v.payMax != null) range = fmt(v.payMax) + suffix;
+        var label = v.payType === 'STIPEND' ? 'Stipend' : '';
+        var parts = [label, range, v.payNote].filter(Boolean);
+        return parts.length ? parts.join(' · ') : null;
+      }
+      var payLine = formatPay(vacancy);
+    %>
+
+    <div class="form-shell">
+      <span class="badge <%= vacancy.category === 'BOARD_COMMISSION' ? 'badge-board' : 'badge-dept' %>">
+        <%= vacancy.category === 'BOARD_COMMISSION' ? 'Board / Commission' : 'Town Department' %>
+      </span>
+      <span class="badge badge-status"><%= vacancy.employmentType.replace('_',' ') %></span>
+      <% if (vacancy.status !== 'OPEN') { %><span class="badge badge-closed">Closed</span><% } %>
+
+      <h1 class="section-title u-mt-10"><%= vacancy.title %></h1>
+      <p class="text-brand-strong"><%= vacancy.departmentOrBoard %></p>
+      <% if (payLine) { %><p class="text-success-strong"><%= payLine %></p><% } %>
+      <p class="hint">Posted <%= vacancy.postedDate.toDateString() %><% if (vacancy.closingDate) { %> · Closes <%= vacancy.closingDate.toDateString() %><% } %></p>
+
+      <div class="form-section-title">Full Description</div>
+      <div class="rich-content"><%- vacancy.description %></div>
+
+      <% if (vacancy.qualifications) { %>
+        <div class="form-section-title">Qualifications</div>
+        <div class="rich-content"><%- vacancy.qualifications %></div>
+      <% } %>
+
+      <% if (vacancy.status === 'OPEN') { %>
+        <div class="u-mt-16">
+          <% if (vacancy.category === 'BOARD_COMMISSION') { %>
+            <a class="btn btn-navy" href="/volunteer-application?vacancy=<%= vacancy.id %>">Apply to Volunteer</a>
+          <% } else { %>
+            <a class="btn btn-navy" href="/employment-application?vacancy=<%= vacancy.id %>">Apply for this Job</a>
+          <% } %>
+        </div>
+      <% } else { %>
+        <div class="alert alert-info u-mt-16">This posting is closed and no longer accepting applications.</div>
+      <% } %>
+    </div>
+  </div>
+</section>

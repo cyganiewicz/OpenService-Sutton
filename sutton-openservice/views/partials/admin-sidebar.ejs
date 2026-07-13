@@ -4,6 +4,7 @@
   <a href="/admin/boards" class="<%= currentPath.startsWith('/admin/boards') ? 'active' : '' %>">Boards &amp; Members</a>
   <a href="/admin/applications/volunteer" class="<%= currentPath.startsWith('/admin/applications/volunteer') ? 'active' : '' %>">Volunteer Applications</a>
   <a href="/admin/applications/employment" class="<%= currentPath.startsWith('/admin/applications/employment') ? 'active' : '' %>">Employment Applications</a>
+  <a href="/admin/forms" class="<%= currentPath.startsWith('/admin/forms') ? 'active' : '' %>">Application Forms</a>
   <% if (adminUser && adminUser.role === 'ADMINISTRATOR') { %>
     <a href="/admin/staff" class="<%= currentPath.startsWith('/admin/staff') ? 'active' : '' %>">Staff Accounts</a>
   <% } %>
